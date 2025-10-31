@@ -19,19 +19,31 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 
 ### Build
 
-1. Download the LTS version of [Node.js](https://nodejs.org/en).
+1. Download [Rust](https://www.rust-lang.org/tools/install).
 2. Open a command-line terminal (e.g., Terminal, Command Prompt).
-3. Enter `node --version` to verify the installation.
-4. Run `npm install -g pnpm` to globally install the package manager [pnpm](https://pnpm.io).
-5. Download or clone the repository with `git clone https://github.com/bd53/demo-wallet`.
-6. Install all dependencies with `pnpm i`.
-7. Build the resource with `pnpm build`.
+3. Enter `rustc --version` / `cargo --version` to verify the installation.
+4. Download or clone the repository with `git clone https://github.com/bd53/demo-wallet`.
+5. Build the resource with `cargo build --release`.
+6. The compiled binary will be available at `./target/release/demo-wallet`.
 
 ## Usage
 
 ### Commands
 
-Just about every command shares two common flags:
+All commands can be executed using any of the following methods:
+
+```bash
+# Using cargo
+cargo run -- <command> [options]
+
+# For optimized builds
+cargo run --release -- <command> [options]
+
+# Using the compiled binary
+./target/release/demo-wallet <command> [options]
+```
+
+Each command shares two common flags:
 
 - `-p, --password <password>`
 - `--online`
@@ -42,10 +54,10 @@ If the system has an active network and `--online` is **not** provided, the comm
 
 ```bash
 # Generate with 24-word mnemonic
-ts-node index.ts generate -p "password"
+cargo run -- generate -p "password"
 
 # Generate with 12-word mnemonic
-ts-node index.ts generate -p "password" -w 12
+cargo run -- generate -p "password" -w 12
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                  |
@@ -64,16 +76,16 @@ This project is for educational purposes only and is intended to demonstrate a m
 
 ```bash
 # Show default account (account 0)
-ts-node index.ts show -p "password"
+cargo run -- show -p "password"
 
 # Show specific account (account 5)
-ts-node index.ts show -p "password" -a 5
+cargo run -- show -p "password" -a 5
 
 # Show default account + QR codes
-ts-node index.ts show -p "password" --qr
+cargo run -- show -p "password" --qr
 
 # Show specific account (account 3) + QR codes
-ts-node index.ts show -p "password" -a 3 --qr
+cargo run -- show -p "password" -a 3 --qr
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                         |
@@ -89,10 +101,10 @@ Generate multiple receiving addresses from the same seed:
 
 ```bash
 # Derive first 5 accounts
-ts-node index.ts derive -p "password" -c 5
+cargo run -- derive -p "password" -c 5
 
 # Derive up to 20 accounts
-ts-node index.ts derive -p "password" -c 20
+cargo run -- derive -p "password" -c 20
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                               |
@@ -104,7 +116,7 @@ ts-node index.ts derive -p "password" -c 20
 ### Export Mnemonic
 
 ```bash
-ts-node index.ts mnemonic -p "password" --reveal
+cargo run -- mnemonic -p "password" --reveal
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                 |
@@ -117,10 +129,10 @@ ts-node index.ts mnemonic -p "password" --reveal
 
 ```bash
 # Export private key for a specific chain
-ts-node index.ts privatekey -p "password" -c ethereum
+cargo run -- privatekey -p "password" -c ethereum
 
 # Export private key for (account 1) + QR code
-ts-node index.ts privatekey -p "password" -c solana -a 1 --qr
+cargo run -- privatekey -p "password" -c solana -a 1 --qr
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                     |
@@ -139,10 +151,16 @@ This command technically defeats the purpose of everything. It's provided only f
 
 ```bash
 # Convert a Bitcoin private key (mainnet)
-ts-node convert.ts -k <hex-private-key>
+cargo run -- convert -k <hex-private-key>
 
 # Convert a Bitcoin private key (testnet)
-ts-node convert.ts -k <hex-private-key> --testnet
+cargo run -- convert -k <hex-private-key> --testnet
+
+# Convert a Bitcoin private key (mainnet, uncompressed)
+cargo run -- convert -k <hex-private-key> -u
+
+# Convert a Bitcoin private key (testnet, uncompressed)
+cargo run -- convert -k <hex-private-key> --testnet -u
 ```
 
 | Flag/Alias           | Option   | Type    | Description                                              |
@@ -156,23 +174,19 @@ ts-node convert.ts -k <hex-private-key> --testnet
 If your local wallet file has been deleted or lost, you can use a mnemonic phrase to recover your wallet:
 
 ```bash
-ts-node index.ts restore \
-  -m "witch collapse practice feed shame open despair creek road again ice least" \
-  -p "new-password"
+cargo run -- restore -m "witch collapse practice feed shame open despair creek road again ice least" -p "new-password"
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                      |
 | --------------------------- | -------- | ------- | ------------------------------------------------ |
-| `-m, --mnemonic <phrase>`   | Required | string  | Full 12/24-word recovery phrase.                 |
+| `-m, --mnemonic <phrase>`   | Required | string  | Full 12/24 word recovery phrase.                 |
 | `-p, --password <password>` | Required | string  | New password for encryption (min. 8 characters). |
 | `--online`                  | Optional | boolean | Allows running online.                           |
 
 ### Change Password
 
 ```bash
-ts-node index.ts change-password \
-  -o "current-password" \
-  -n "new-password"
+cargo run -- change-password -o "current-password" -n "new-password"
 ```
 
 | Flag/Alias             | Option   | Type    | Description                                      |
@@ -184,7 +198,7 @@ ts-node index.ts change-password \
 ### Verify Wallet Integrity
 
 ```bash
-ts-node index.ts verify -p "password"
+cargo run -- verify -p "password"
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                 |
@@ -197,7 +211,7 @@ ts-node index.ts verify -p "password"
 This permanently deletes your wallet file. Ensure you have your mnemonic backed up:
 
 ```bash
-ts-node index.ts delete --confirm
+cargo run -- delete --confirm
 ```
 
 | Flag/Alias  | Option   | Type    | Description                  |
@@ -225,24 +239,24 @@ All accounts are cryptographically derived from your mnemonic.
 ## Security
 
 - Run only on a clean, offline machine. Disconnect all network interfaces before using.
-- Use a live OS _(e.g., Debian, Arch, or Fedora)_ for true air-gap generation.
+- Use a live OS *(e.g., Debian, Arch, or Fedora)* for true air-gap generation.
 - Never store your mnemonic digitally. Use metal or paper backups only.
 - Avoid screenshots, cloud backups, or password managers that sync online.
 
 This wallet protects against:
 
-- Remote attacks _(air-gapped)_
-- Malware _(offline generation)_
-- Phishing _(no online interaction)_
-- Exchange hacks _(self-custody)_
-- Service shutdowns _(no dependencies)_
+- Remote attacks _(air-gapped)_.
+- Malware _(offline generation)_.
+- Phishing _(no online interaction)_.
+- Exchange hacks _(self-custody)_.
+- Service shutdowns _(no dependencies)_.
 
 This wallet does **not** protect against:
 
-- Physical theft of the device _(use encryption + secure location)_
-- $5 wrench attack _(use secure locations + don't talk about crypto)_
-- Compromised system during generation _(use clean/live OS)_
-- Poor mnemonic storage _(engrave in metal + use multiple locations)_
+- Physical theft of the device _(use encryption + secure location)_.
+- $5 wrench attack _(use secure locations + don't talk about crypto)_.
+- Compromised system during generation _(use clean/live OS)_.
+- Poor mnemonic storage _(engrave in metal + use multiple locations)_.
 
 ## Additional Resources
 

@@ -29,6 +29,8 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 
 ## Usage
 
+### Commands
+
 Just about every command shares two common flags:
 
 - `-p, --password <password>`
@@ -40,10 +42,10 @@ If the system has an active network and `--online` is **not** provided, the comm
 
 ```bash
 # Generate with 24-word mnemonic
-node build/index.js generate -p "password"
+ts-node index.ts generate -p "password"
 
 # Generate with 12-word mnemonic
-node build/index.js generate -p "password" -w 12
+ts-node index.ts generate -p "password" -w 12
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                  |
@@ -54,7 +56,7 @@ node build/index.js generate -p "password" -w 12
 
 **Note: Generated addresses are fully functional and can receive and hold funds indefinitely.**
 
-To access or move those funds, export the private key _(or mnemonic)_ and import it into a compatible online wallet.
+If you want to access or transfer funds from an address, export the private key _(or mnemonic phrase)_ and import it into a trusted, compatible online wallet.
 
 This project is for educational purposes only and is intended to demonstrate a minimal example of offline key management and cold storage, this is **not** financial advice.
 
@@ -62,16 +64,16 @@ This project is for educational purposes only and is intended to demonstrate a m
 
 ```bash
 # Show default account (account 0)
-node build/index.js show -p "password"
+ts-node index.ts show -p "password"
 
 # Show specific account (account 5)
-node build/index.js show -p "password" -a 5
+ts-node index.ts show -p "password" -a 5
 
 # Show default account + QR codes
-node build/index.js show -p "password" --qr
+ts-node index.ts show -p "password" --qr
 
 # Show specific account (account 3) + QR codes
-node build/index.js show -p "password" -a 3 --qr
+ts-node index.ts show -p "password" -a 3 --qr
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                         |
@@ -87,10 +89,10 @@ Generate multiple receiving addresses from the same seed:
 
 ```bash
 # Derive first 5 accounts
-node build/index.js derive -p "password" -c 5
+ts-node index.ts derive -p "password" -c 5
 
 # Derive up to 20 accounts
-node build/index.js derive -p "password" -c 20
+ts-node index.ts derive -p "password" -c 20
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                               |
@@ -102,7 +104,7 @@ node build/index.js derive -p "password" -c 20
 ### Export Mnemonic
 
 ```bash
-node build/index.js mnemonic -p "password" --reveal
+ts-node index.ts mnemonic -p "password" --reveal
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                 |
@@ -115,10 +117,10 @@ node build/index.js mnemonic -p "password" --reveal
 
 ```bash
 # Export private key for a specific chain
-node build/index.js privatekey -p "password" -c ethereum
+ts-node index.ts privatekey -p "password" -c ethereum
 
 # Export private key for (account 1) + QR code
-node build/index.js privatekey -p "password" -c solana -a 1 --qr
+ts-node index.ts privatekey -p "password" -c solana -a 1 --qr
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                     |
@@ -137,10 +139,10 @@ This command technically defeats the purpose of everything. It's provided only f
 
 ```bash
 # Convert a Bitcoin private key (mainnet)
-node build/convert.js -k <hex-private-key>
+ts-node convert.ts -k <hex-private-key>
 
 # Convert a Bitcoin private key (testnet)
-node build/convert.js -k <hex-private-key> --testnet
+ts-node convert.ts -k <hex-private-key> --testnet
 ```
 
 | Flag/Alias        | Option   | Type    | Description                                     |
@@ -153,7 +155,7 @@ node build/convert.js -k <hex-private-key> --testnet
 If your local wallet file has been deleted or lost, you can use a mnemonic phrase to recover your wallet:
 
 ```bash
-node build/index.js restore \
+ts-node index.ts restore \
   -m "witch collapse practice feed shame open despair creek road again ice least" \
   -p "new-password"
 ```
@@ -167,7 +169,7 @@ node build/index.js restore \
 ### Change Password
 
 ```bash
-node build/index.js change-password \
+ts-node index.ts change-password \
   -o "current-password" \
   -n "new-password"
 ```
@@ -181,7 +183,7 @@ node build/index.js change-password \
 ### Verify Wallet Integrity
 
 ```bash
-node build/index.js verify -p "password"
+ts-node index.ts verify -p "password"
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                 |
@@ -191,12 +193,10 @@ node build/index.js verify -p "password"
 
 ### Delete Wallet
 
-This permanently deletes your wallet file.
-
-Ensure you have your mnemonic backed up in case you ever want to restore it:
+This permanently deletes your wallet file. Ensure you have your mnemonic backed up:
 
 ```bash
-node build/index.js delete --confirm
+ts-node index.ts delete --confirm
 ```
 
 | Flag/Alias  | Option   | Type    | Description                  |

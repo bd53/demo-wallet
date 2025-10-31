@@ -6,7 +6,6 @@ import { Options } from './types';
 
 const ECPair = ECPairFactory(ecc);
 const program = new Command();
-const opts = program.opts<Options>();
 
 const hexToWIF = (hexKey: string, testnet = false, compressed = true) => {
   if (!hexKey) throw new Error('Missing private key.');
@@ -21,8 +20,10 @@ program
   .description('Convert Bitcoin private key (hex) to WIF format')
   .requiredOption('-k, --key <hex>', 'Private key in hex format')
   .option('--testnet', 'Use Bitcoin testnet network')
-  .option('-u', '--uncompressed', 'Generate uncompressed WIF key')
+  .option('-u, --uncompressed', 'Generate uncompressed WIF key')
   .parse(process.argv);
+
+const opts = program.opts<Options>();
 
 try {
   const wif = hexToWIF(opts.key, opts.testnet, !opts.uncompressed);

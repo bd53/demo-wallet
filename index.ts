@@ -137,7 +137,7 @@ const deriveAllAddresses = async (mnemonic: string, index: number = 0): Promise<
     const ethWallet = hdNode.derivePath(`m/44'/60'/0'/0/${index}`);
     const solPath = `m/44'/501'/${index}'/0'`;
     const solSeed = ethers.HDNodeWallet.fromSeed(seed).derivePath(solPath).privateKey;
-    const solKeypair = Keypair.fromSeed(Buffer.from(solSeed.slice(2), 'hex'));
+    const solKeypair = Keypair.fromSeed(Buffer.from(solSeed.slice(2), 'hex').subarray(0, 32));
     return { bitcoin: { p2pkh, p2wpkh, p2sh }, ethereum: ethWallet.address, solana: solKeypair.publicKey.toBase58() };
   } finally {
     erase.buffer(seed);
@@ -164,7 +164,7 @@ const deriveMultipleAccounts = async (password: string, count: number = 5): Prom
         console.log(`  Solana: ${addresses.solana}`);
       }
       console.log('--------------------------------------------------------------\n');
-      updateMetadata();
+      updateMetadata(count);
     } finally {
       erase.string(mnemonic);
     }
@@ -182,10 +182,13 @@ const loadMetadata = (): Metadata | null => {
   return JSON.parse(fs.readFileSync(METADATA_FILE, 'utf8'));
 };
 
-const updateMetadata = () => {
+const updateMetadata = (addressCount?: number) => {
   const metadata = loadMetadata();
   if (metadata) {
     metadata.lastAccessed = new Date().toISOString();
+    if (addressCount !== undefined) {
+      metadata.addressCount = Math.max(metadata.addressCount, addressCount);
+    }
     saveMetadata(metadata);
   }
 };
@@ -393,6 +396,7 @@ const exportPrivateKey = async (password: string, chain: 'bitcoin' | 'ethereum' 
     try {
       const seed = await bip39.mnemonicToSeed(mnemonic);
       let privkey: string;
+      let privkeyBuffer: Buffer | null = null;
       switch (chain) {
         case 'bitcoin': {
           const root = bip32.fromSeed(seed);
@@ -401,20 +405,23 @@ const exportPrivateKey = async (password: string, chain: 'bitcoin' | 'ethereum' 
             console.log('Failed to derive Bitcoin private key.');
             return;
           }
-          privkey = Buffer.from(keyBTC.privateKey).toString('hex');
+          privkeyBuffer = Buffer.from(keyBTC.privateKey);
+          privkey = privkeyBuffer.toString('hex');
           break;
         }
         case 'ethereum': {
           const hdNode = ethers.HDNodeWallet.fromSeed(seed);
           const wallet = hdNode.derivePath(`m/44'/60'/0'/0/${index}`);
           privkey = wallet.privateKey;
+          privkeyBuffer = Buffer.from(privkey.slice(2), 'hex');
           break;
         }
         case 'solana': {
           const solPath = `m/44'/501'/${index}'/0'`;
           const solSeed = ethers.HDNodeWallet.fromSeed(seed).derivePath(solPath).privateKey;
-          const solKeypair = Keypair.fromSeed(Buffer.from(solSeed.slice(2), 'hex'));
-          privkey = bs58.encode(Buffer.from(solKeypair.secretKey));
+          const solKeypair = Keypair.fromSeed(Buffer.from(solSeed.slice(2), 'hex').subarray(0, 32));
+          privkeyBuffer = Buffer.from(solKeypair.secretKey);
+          privkey = bs58.encode(privkeyBuffer);
           break;
         }
         default:
@@ -430,7 +437,10 @@ const exportPrivateKey = async (password: string, chain: 'bitcoin' | 'ethereum' 
       updateMetadata();
       erase.buffer(seed);
       erase.string(mnemonic);
-      erase.buffer(Buffer.from(privkey, 'utf8'));
+      erase.string(privkey);
+      if (privkeyBuffer) {
+        erase.buffer(privkeyBuffer);
+      }
     } catch {
       console.log('Failed to derive private key.');
     }
@@ -446,11 +456,11 @@ program
 program
   .command('generate')
   .description('Generate a new wallet (offline)')
-  .requiredOption(`-p, --password <password>', 'Password for encryption (min ${PASSWORD_LENGTH} chars)`)
+  .requiredOption(`-p, --password <password>`, `Password for encryption (min ${PASSWORD_LENGTH} chars)`)
   .option('-w, --words <count>', 'Word count: 12 or 24 (default: 24)', '24')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action(async (opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     const count = parseInt(opts.words);
     if (count !== 12 && count !== 24) {
       console.log('Word count must be 12 or 24');
@@ -467,7 +477,7 @@ program
   .option('--qr', 'Show QR codes for addresses in terminal')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action(async (opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     await showWallet(opts.password, parseInt(opts.account), !!opts.qr);
   });
 
@@ -475,10 +485,10 @@ program
   .command('derive')
   .description('Derive multiple account addresses')
   .requiredOption('-p, --password <password>', 'Password for decryption')
-  .option(`-c, --count <number>', 'Number of accounts to derive (1-${ACCOUNT_MAX}, default: 5)`, '5')
+  .option(`-c, --count <number>`, `Number of accounts to derive (1-${ACCOUNT_MAX}, default: 5)`, '5')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action(async (opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     await deriveMultipleAccounts(opts.password, parseInt(opts.count));
   });
 
@@ -489,7 +499,7 @@ program
   .option('--reveal', 'Explicitly reveal mnemonic in terminal (use only on offline machine)')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action((opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     exportMnemonic(opts.password, !!opts.reveal);
   });
 
@@ -502,7 +512,7 @@ program
   .option('--qr', 'Show QR code for private key (use offline only)')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action(async (opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     await exportPrivateKey(opts.password, opts.chain, parseInt(opts.account), !!opts.qr);
   });
 
@@ -510,10 +520,10 @@ program
   .command('restore')
   .description('Restore wallet from mnemonic')
   .requiredOption('-m, --mnemonic <phrase>', 'Your 12 or 24 word phrase')
-  .requiredOption(`-p, --password <password>', 'Password for encryption (min ${PASSWORD_LENGTH} chars)`)
+  .requiredOption(`-p, --password <password>`, `Password for encryption (min ${PASSWORD_LENGTH} chars)`)
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action(async (opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     await restoreWallet(opts.mnemonic, opts.password);
   });
 
@@ -521,10 +531,10 @@ program
   .command('change-password')
   .description('Change wallet password')
   .requiredOption('-o, --old <password>', 'Current password')
-  .requiredOption(`-p, --password <password>', 'New password (min ${PASSWORD_LENGTH} chars)`)
+  .requiredOption(`-n, --new <password>`, `New password (min ${PASSWORD_LENGTH} chars)`)
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action((opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     changePassword(opts.old, opts.new);
   });
 
@@ -534,7 +544,7 @@ program
   .requiredOption('-p, --password <password>', 'Password for decryption')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action((opts) => {
-    if (!status(opts.online)) return;
+    if (!status(!!opts.online)) return;
     verifyWallet(opts.password);
   });
 
@@ -544,8 +554,8 @@ program
   .option('--confirm', 'Confirm deletion')
   .option('--online', 'Allow running while network interfaces are active (unsafe)')
   .action((opts) => {
-    if (!status(opts.online)) return;
-    deleteWallet(opts.confirm);
+    if (!status(!!opts.online)) return;
+    deleteWallet(!!opts.confirm);
   });
 
 program.parse(process.argv);

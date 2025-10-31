@@ -61,8 +61,20 @@ const status = (online: boolean): boolean => {
 };
 
 const validate = (password: string): boolean => {
+  if (!password) {
+    console.log('Password cannot be empty.');
+    return false;
+  }
   if (password.length < PASSWORD_LENGTH) {
     console.log(`Password must be at least ${PASSWORD_LENGTH} characters long.`);
+    return false;
+  }
+  const upper = /[A-Z]/.test(password);
+  const lower = /[a-z]/.test(password);
+  const number = /[0-9]/.test(password);
+  const symbol = /[!@#$%^&*(),.?":{}|<>_\-\\[\]\/~`+=;]/.test(password);
+  if (!(upper && lower && number && symbol)) {
+    console.log('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special symbol.');
     return false;
   }
   return true;
@@ -418,7 +430,7 @@ const exportPrivateKey = async (password: string, chain: 'bitcoin' | 'ethereum' 
       updateMetadata();
       erase.buffer(seed);
       erase.string(mnemonic);
-      erase.string(privkey);
+      erase.buffer(Buffer.from(privkey, 'utf8'));
     } catch {
       console.log('Failed to derive private key.');
     }

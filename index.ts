@@ -38,17 +38,16 @@ const net = (): boolean => {
 
 const erase = {
   buffer: (b?: Buffer | null) => {
-    if (b) {
-      try { b.fill(0); } catch {}
+    if (b && Buffer.isBuffer(b)) {
+      try {
+        b.fill(0);
+      } catch (err) {
+        console.error('Failed to erase buffer from memory');
+      }
     }
   },
-  string: (s?: string | null) => {
-    if (s) {
-      try {
-        const b = Buffer.from(s, 'utf8');
-        b.fill(0);
-      } catch {}
-    }
+  buffers: (...buffers: (Buffer | null | undefined)[]) => {
+    buffers.forEach(b => erase.buffer(b));
   }
 };
 
@@ -60,7 +59,7 @@ const status = (online: boolean): boolean => {
   return true;
 };
 
-const validate = (password: string): boolean => {
+const validatePassword = (password: string): boolean => {
   if (!password) {
     console.log('Password cannot be empty.');
     return false;
@@ -75,6 +74,14 @@ const validate = (password: string): boolean => {
   const symbol = /[!@#$%^&*(),.?":{}|<>_\-\\[\]\/~`+=;]/.test(password);
   if (!(upper && lower && number && symbol)) {
     console.log('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special symbol.');
+    return false;
+  }
+  return true;
+};
+
+const validateAccountIndex = (index: number): boolean => {
+  if (index < 0 || index >= ACCOUNT_MAX) {
+    console.log(`Account index must be between 0 and ${ACCOUNT_MAX - 1}.`);
     return false;
   }
   return true;
@@ -98,35 +105,41 @@ const found = (): boolean => {
   return true;
 };
 
-const encryptMnemonic = (mnemonic: string, password: string): Wallet => {
+const encryptMnemonic = (mnemonicBuf: Buffer, password: string): Wallet => {
   const salt = crypto.randomBytes(32);
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(password, salt, 32, SCRYPT);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(mnemonic, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  erase.buffer(key);
-  return { iv: iv.toString('hex'), content: encrypted.toString('hex'), tag: tag.toString('hex'), salt: salt.toString('hex') };
-};
-
-const decryptMnemonic = (data: Wallet, password: string): string => {
   try {
-    const salt = Buffer.from(data.salt, 'hex');
-    const key = crypto.scryptSync(password, salt, 32, SCRYPT);
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(data.iv, 'hex'));
-    decipher.setAuthTag(Buffer.from(data.tag, 'hex'));
-    const decrypted = Buffer.concat([decipher.update(Buffer.from(data.content, 'hex')), decipher.final()]);
-    const mnemonic = decrypted.toString('utf8');
-    erase.buffer(decrypted);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(mnemonicBuf), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return { iv: iv.toString('hex'), content: encrypted.toString('hex'), tag: tag.toString('hex'), salt: salt.toString('hex') };
+  } finally {
     erase.buffer(key);
-    return mnemonic;
-  } catch (err) {
-    throw new Error('Decryption failed. Invalid password or corrupted wallet file.');
   }
 };
 
-const deriveAllAddresses = async (mnemonic: string, index: number = 0): Promise<Addresses> => {
-  const seed = await bip39.mnemonicToSeed(mnemonic);
+const decryptMnemonic = (data: Wallet, password: string): Buffer => {
+  const salt = Buffer.from(data.salt, 'hex');
+  const key = crypto.scryptSync(password, salt, 32, SCRYPT);
+  let decrypted: Buffer | null = null;
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(data.iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(data.tag, 'hex'));
+    decrypted = Buffer.concat([decipher.update(Buffer.from(data.content, 'hex')), decipher.final()]);
+    const mnemonic = Buffer.from(decrypted);
+    erase.buffer(decrypted);
+    return mnemonic;
+  } catch (err) {
+    if (decrypted) erase.buffer(decrypted);
+    throw new Error('Decryption failed. Invalid password or corrupted wallet file.');
+  } finally {
+    erase.buffer(key);
+  }
+};
+
+const deriveAllAddresses = async (mnemonicBuf: Buffer, index: number = 0): Promise<Addresses> => {
+  const seed = await bip39.mnemonicToSeed(mnemonicBuf.toString('utf8'));
   try {
     const rootBTC = bip32.fromSeed(seed);
     const keyBTC = rootBTC.derivePath(`m/44'/0'/0'/0/${index}`);
@@ -147,29 +160,28 @@ const deriveAllAddresses = async (mnemonic: string, index: number = 0): Promise<
 const deriveMultipleAccounts = async (password: string, count: number = 5): Promise<void> => {
   if (!check()) return;
   if (count < 1 || count > ACCOUNT_MAX) {
-    console.log(`You are not able to derive more than ${ACCOUNT_MAX} accounts.`);
+    console.log(`You can only derive between 1 and ${ACCOUNT_MAX} accounts.`);
     return;
   }
+  let mnemonicBuf: Buffer | null = null;
   try {
     const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
-    const mnemonic = decryptMnemonic(data, password);
-    try {
-      console.log(`\nDeriving ${count} account(s)...\n`);
-      for (let i = 0; i < count; i++) {
-        const addresses: Addresses = await deriveAllAddresses(mnemonic, i);
-        console.log('--------------------------------------------------------------');
-        console.log(`Account ${i}:`);
-        console.log(`  Bitcoin (SegWit): ${addresses.bitcoin.p2wpkh}`);
-        console.log(`  Ethereum: ${addresses.ethereum}`);
-        console.log(`  Solana: ${addresses.solana}`);
-      }
-      console.log('--------------------------------------------------------------\n');
-      updateMetadata(count);
-    } finally {
-      erase.string(mnemonic);
+    mnemonicBuf = decryptMnemonic(data, password);
+    console.log(`\nDeriving ${count} account(s)...\n`);
+    for (let i = 0; i < count; i++) {
+      const addresses: Addresses = await deriveAllAddresses(mnemonicBuf, i);
+      console.log('--------------------------------------------------------------');
+      console.log(`Account ${i}:`);
+      console.log(`  Bitcoin (SegWit): ${addresses.bitcoin.p2wpkh}`);
+      console.log(`  Ethereum: ${addresses.ethereum}`);
+      console.log(`  Solana: ${addresses.solana}`);
     }
+    console.log('--------------------------------------------------------------\n');
+    updateMetadata(count);
   } catch (err) {
     console.log((err as Error).message);
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
   }
 };
 
@@ -179,7 +191,12 @@ const saveMetadata = (metadata: Metadata) => {
 
 const loadMetadata = (): Metadata | null => {
   if (!fs.existsSync(METADATA_FILE)) return null;
-  return JSON.parse(fs.readFileSync(METADATA_FILE, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(METADATA_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Failed to load metadata file');
+    return null;
+  }
 };
 
 const updateMetadata = (addressCount?: number) => {
@@ -205,7 +222,7 @@ const generateQRCode = async (data: string, label: string): Promise<void> => {
       });
     });
   } catch (e) {
-    console.log(`Error generating ${label} QR code:`, e);
+    console.log(`Error generating ${label} QR code:`, (e as Error).message);
   }
 };
 
@@ -229,89 +246,98 @@ const displayWalletInfo = (metadata: Metadata) => {
   console.log('\nWallet Info:');
   console.log(`   Version: ${metadata.version}`);
   console.log(`   Created: ${new Date(metadata.createdAt).toLocaleString()}`);
+  console.log(`   Accounts: ${metadata.addressCount}`);
   if (metadata.lastAccessed) {
     console.log(`   Last Accessed: ${new Date(metadata.lastAccessed).toLocaleString()}`);
   }
 };
 
 const generateWallet = async (password: string, count: 12 | 24 = 24): Promise<void> => {
-  if (!found() || !validate(password)) return;
+  if (!validatePassword(password) || !found()) return;
   const strength = count === 24 ? 256 : 128;
   const entropy = crypto.randomBytes(strength / 8);
-  const mnemonic = bip39.entropyToMnemonic(entropy);
-  erase.buffer(entropy);
-  const encrypted = encryptMnemonic(mnemonic, password);
-  fs.writeFileSync(WALLET_FILE, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
-  const metadata: Metadata = { version: '2.0', createdAt: new Date().toISOString(), addressCount: 1 };
-  saveMetadata(metadata);
-  const addresses: Addresses = await deriveAllAddresses(mnemonic);
-  console.log('\nWallet generated successfully.\n');
-  console.log('Write down your mnemonic phrase and store it securely offline.');
-  console.log('Use the `mnemonic --reveal` command to view it (only on an air-gapped machine).\n');
-  displayAddresses(addresses, 0);
-  console.log(`Wallet stored in: ${WALLET_FILE}`);
-  console.log(`Metadata stored in: ${METADATA_FILE}`);
-  erase.string(mnemonic);
+  let mnemonicBuf: Buffer | null = null;
+  try {
+    const mnemonicStr = bip39.entropyToMnemonic(entropy);
+    mnemonicBuf = Buffer.from(mnemonicStr, 'utf8');
+    erase.buffer(entropy);
+    const encrypted = encryptMnemonic(mnemonicBuf, password);
+    fs.writeFileSync(WALLET_FILE, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+    const metadata: Metadata = { version: '2.0', createdAt: new Date().toISOString(), addressCount: 1 };
+    saveMetadata(metadata);
+    const addresses: Addresses = await deriveAllAddresses(mnemonicBuf);
+    console.log('\nWallet generated successfully.\n');
+    console.log('Write down your mnemonic phrase and store it securely offline.');
+    console.log('Use the `mnemonic --reveal` command to view it (only on an air-gapped machine).\n');
+    displayAddresses(addresses, 0);
+    console.log(`Wallet stored in: ${WALLET_FILE}`);
+    console.log(`Metadata stored in: ${METADATA_FILE}`);
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
+  }
 };
 
 const showWallet = async (password: string, account: number = 0, qr: boolean = false): Promise<void> => {
-  if (!check()) return;
+  if (!check() || !validateAccountIndex(account)) return;
+  let mnemonicBuf: Buffer | null = null;
   try {
     const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
-    const mnemonic = decryptMnemonic(data, password);
-    try {
-      const addresses: Addresses = await deriveAllAddresses(mnemonic, account);
-      updateMetadata();
-      displayAddresses(addresses, account);
-      if (qr) {
-        await generateAddressQRCodes(addresses);
-      }
-    } finally {
-      erase.string(mnemonic);
+    mnemonicBuf = decryptMnemonic(data, password);
+    const addresses: Addresses = await deriveAllAddresses(mnemonicBuf, account);
+    updateMetadata();
+    displayAddresses(addresses, account);
+    if (qr) {
+      await generateAddressQRCodes(addresses);
     }
   } catch (err) {
     console.log((err as Error).message);
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
   }
 };
 
 const restoreWallet = async (mnemonic: string, password: string): Promise<void> => {
-  if (!found()) return;
+  if (!validatePassword(password) || !found()) return;
   const trimmed = mnemonic.trim();
-  if (!bip39.validateMnemonic(trimmed)) {
-    console.log('Invalid mnemonic phrase.');
-    return;
+  let mnemonicBuf: Buffer | null = null;
+  try {
+    if (!bip39.validateMnemonic(trimmed)) {
+      console.log('Invalid mnemonic phrase.');
+      return;
+    }
+    mnemonicBuf = Buffer.from(trimmed, 'utf8');
+    const encrypted = encryptMnemonic(mnemonicBuf, password);
+    fs.writeFileSync(WALLET_FILE, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+    const metadata: Metadata = { version: '2.0', createdAt: new Date().toISOString(), addressCount: 1 };
+    saveMetadata(metadata);
+    const addresses: Addresses = await deriveAllAddresses(mnemonicBuf);
+    console.log('\nWallet restored successfully.\n');
+    displayAddresses(addresses, 0);
+    updateMetadata();
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
   }
-  if (!validate(password)) return;
-  const encrypted = encryptMnemonic(trimmed, password);
-  fs.writeFileSync(WALLET_FILE, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
-  const metadata: Metadata = { version: '2.0', createdAt: new Date().toISOString(), addressCount: 1 };
-  saveMetadata(metadata);
-  const addresses: Addresses = await deriveAllAddresses(trimmed);
-  console.log('\nWallet restored successfully.\n');
-  displayAddresses(addresses, 0);
-  erase.string(mnemonic);
 };
 
 const verifyWallet = (password: string) => {
   if (!check()) return;
+  let mnemonicBuf: Buffer | null = null;
   try {
     const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
-    const mnemonic = decryptMnemonic(data, password);
-    try {
-      if (bip39.validateMnemonic(mnemonic)) {
-        console.log('Wallet file is valid and password is correct.');
-        const metadata: Metadata | null = loadMetadata();
-        if (metadata) {
-          displayWalletInfo(metadata);
-        }
-      } else {
-        console.log('Wallet file appears corrupted.');
+    mnemonicBuf = decryptMnemonic(data, password);
+    if (bip39.validateMnemonic(mnemonicBuf.toString('utf8'))) {
+      console.log('Wallet file is valid and password is correct.');
+      const metadata: Metadata | null = loadMetadata();
+      if (metadata) {
+        displayWalletInfo(metadata);
       }
-    } finally {
-      erase.string(mnemonic);
+    } else {
+      console.log('Wallet file appears corrupted.');
     }
   } catch (err) {
     console.log((err as Error).message);
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
   }
 };
 
@@ -334,7 +360,9 @@ const deleteWallet = (confirm: boolean) => {
         written += to;
       }
       fs.closeSync(fd);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to securely overwrite wallet file');
+    }
     fs.unlinkSync(WALLET_FILE);
     if (fs.existsSync(METADATA_FILE)) {
       fs.unlinkSync(METADATA_FILE);
@@ -342,110 +370,100 @@ const deleteWallet = (confirm: boolean) => {
     console.log('Wallet deleted successfully.');
     console.log('Make sure you have your mnemonic phrase backed up.\n');
   } catch (err) {
-    console.log('Failed to delete wallet file.');
+    console.log('Failed to delete wallet file:', (err as Error).message);
   }
 };
 
 const changePassword = (oldPassword: string, newPassword: string) => {
-  if (!check() || !validate(newPassword)) return;
+  if (!check() || !validatePassword(newPassword)) return;
+  let mnemonicBuf: Buffer | null = null;
   try {
     const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
-    const mnemonic = decryptMnemonic(data, oldPassword);
-    try {
-      const encrypted: Wallet = encryptMnemonic(mnemonic, newPassword);
-      fs.writeFileSync(WALLET_FILE, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
-      console.log('Password changed successfully.\n');
-      updateMetadata();
-    } finally {
-      erase.string(mnemonic);
-    }
+    mnemonicBuf = decryptMnemonic(data, oldPassword);
+    const encrypted: Wallet = encryptMnemonic(mnemonicBuf, newPassword);
+    fs.writeFileSync(WALLET_FILE, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+    console.log('Password changed successfully.\n');
+    updateMetadata();
   } catch (err) {
     console.log((err as Error).message);
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
   }
 };
 
 const exportMnemonic = (password: string, reveal: boolean = false) => {
   if (!check()) return;
+  let mnemonicBuf: Buffer | null = null;
   try {
     const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
-    const mnemonic = decryptMnemonic(data, password);
-    try {
-      if (!reveal) {
-        console.log('Mnemonic hidden. Use --reveal to explicitly show it (only on an air-gapped machine).');
-        updateMetadata();
-        return;
-      }
-      console.log('\nDo NOT share this phrase.\n');
-      console.log(`Your mnemonic phrase:\n${mnemonic}\n`);
-      console.log('Write this down on paper and store in a secure location.');
-      console.log('Never store it digitally or share it with anyone.\n');
+    mnemonicBuf = decryptMnemonic(data, password);
+    if (!reveal) {
+      console.log('Mnemonic hidden. Use --reveal to explicitly show it (only on an air-gapped machine).');
       updateMetadata();
-    } finally {
-      erase.string(mnemonic);
+      return;
     }
+    console.log('\nDo NOT share this phrase.\n');
+    console.log(`Your mnemonic phrase:\n${mnemonicBuf.toString('utf8')}\n`);
+    console.log('Write this down on paper and store in a secure location.');
+    console.log('Never store it digitally or share it with anyone.\n');
+    updateMetadata();
   } catch (err) {
     console.log((err as Error).message);
+  } finally {
+    if (mnemonicBuf) erase.buffer(mnemonicBuf);
   }
 };
 
 const exportPrivateKey = async (password: string, chain: 'bitcoin' | 'ethereum' | 'solana', index: number = 0, qr: boolean = false): Promise<void> => {
-  if (!check()) return;
+  if (!check() || !validateAccountIndex(index)) return;
+  let mnemonicBuf: Buffer | null = null;
+  let seed: Buffer | null = null;
+  let privkeyBuf: Buffer | null = null;
+  let privkeyDisplayBuf: Buffer | null = null;
   try {
     const data = JSON.parse(fs.readFileSync(WALLET_FILE, 'utf8'));
-    const mnemonic = decryptMnemonic(data, password);
-    try {
-      const seed = await bip39.mnemonicToSeed(mnemonic);
-      let privkey: string;
-      let privkeyBuffer: Buffer | null = null;
-      switch (chain) {
-        case 'bitcoin': {
-          const root = bip32.fromSeed(seed);
-          const keyBTC = root.derivePath(`m/44'/0'/0'/0/${index}`);
-          if (!keyBTC.privateKey) {
-            console.log('Failed to derive Bitcoin private key.');
-            return;
-          }
-          privkeyBuffer = Buffer.from(keyBTC.privateKey);
-          privkey = privkeyBuffer.toString('hex');
-          break;
+    mnemonicBuf = decryptMnemonic(data, password);
+    seed = await bip39.mnemonicToSeed(mnemonicBuf.toString('utf8'));
+    switch (chain) {
+      case 'bitcoin': {
+        const root = bip32.fromSeed(seed);
+        const keyBTC = root.derivePath(`m/44'/0'/0'/0/${index}`);
+        if (!keyBTC.privateKey) {
+          throw new Error('Failed to derive Bitcoin private key.');
         }
-        case 'ethereum': {
-          const hdNode = ethers.HDNodeWallet.fromSeed(seed);
-          const wallet = hdNode.derivePath(`m/44'/60'/0'/0/${index}`);
-          privkey = wallet.privateKey;
-          privkeyBuffer = Buffer.from(privkey.slice(2), 'hex');
-          break;
-        }
-        case 'solana': {
-          const solPath = `m/44'/501'/${index}'/0'`;
-          const solSeed = ethers.HDNodeWallet.fromSeed(seed).derivePath(solPath).privateKey;
-          const solKeypair = Keypair.fromSeed(Buffer.from(solSeed.slice(2), 'hex').subarray(0, 32));
-          privkeyBuffer = Buffer.from(solKeypair.secretKey);
-          privkey = bs58.encode(privkeyBuffer);
-          break;
-        }
-        default:
-          console.log('Unsupported chain.');
-          return;
+        privkeyBuf = Buffer.from(keyBTC.privateKey);
+        privkeyDisplayBuf = Buffer.from(privkeyBuf.toString('hex'), 'utf8');
+        break;
       }
-      console.log('\nDo NOT share this key.\n');
-      console.log('Only use it to manage funds by importing it into a trusted online wallet.\n');
-      console.log(`${chain.toUpperCase()} Private Key (Account ${index}):\n${privkey}\n`);
-      if (qr) {
-        await generateQRCode(privkey, 'Private Key');
+      case 'ethereum': {
+        const hdNode = ethers.HDNodeWallet.fromSeed(seed);
+        const wallet = hdNode.derivePath(`m/44'/60'/0'/0/${index}`);
+        privkeyBuf = Buffer.from(wallet.privateKey.slice(2), 'hex');
+        privkeyDisplayBuf = Buffer.from(wallet.privateKey, 'utf8');
+        break;
       }
-      updateMetadata();
-      erase.buffer(seed);
-      erase.string(mnemonic);
-      erase.string(privkey);
-      if (privkeyBuffer) {
-        erase.buffer(privkeyBuffer);
+      case 'solana': {
+        const solPath = `m/44'/501'/${index}'/0'`;
+        const solSeed = ethers.HDNodeWallet.fromSeed(seed).derivePath(solPath).privateKey;
+        const solKeypair = Keypair.fromSeed(Buffer.from(solSeed.slice(2), 'hex').subarray(0, 32));
+        privkeyBuf = Buffer.from(solKeypair.secretKey);
+        privkeyDisplayBuf = Buffer.from(bs58.encode(privkeyBuf), 'utf8');
+        break;
       }
-    } catch {
-      console.log('Failed to derive private key.');
+      default:
+        throw new Error('Unsupported chain.');
     }
+    console.log('\nDo NOT share this key.\n');
+    console.log('Only use it to manage funds by importing it into a trusted online wallet.\n');
+    console.log(`${chain.toUpperCase()} Private Key (Account ${index}):\n${privkeyDisplayBuf.toString('utf8')}\n`);
+    if (qr) {
+      await generateQRCode(privkeyDisplayBuf.toString('utf8'), 'Private Key');
+    }
+    updateMetadata();
   } catch (err) {
     console.log((err as Error).message);
+  } finally {
+    erase.buffers(seed, mnemonicBuf, privkeyBuf, privkeyDisplayBuf);
   }
 };
 

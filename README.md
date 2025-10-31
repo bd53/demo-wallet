@@ -13,7 +13,7 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 - BIP39 mnemonic phrases _(12 or 24 words)_.
 - Scrypt key derivation _(32,768 iterations)_.
 - Unlimited account derivation _(BIP44)_.
-- Bitcoin private key conversion _(hex -> WIF)_.
+- Bitcoin private key conversion _(hex -> WIF, compressed or uncompressed)_.
 
 ## Installation
 
@@ -145,10 +145,11 @@ ts-node convert.ts -k <hex-private-key>
 ts-node convert.ts -k <hex-private-key> --testnet
 ```
 
-| Flag/Alias        | Option   | Type    | Description                                     |
-| ----------------- | -------- | ------- | ----------------------------------------------- |
-| `-k, --key <hex>` | Required | string  | Private key in hex format (64 characters).      |
-| `--testnet`       | Optional | boolean | Converts key for testnet (default = `mainnet`). |
+| Flag/Alias           | Option   | Type    | Description                                              |
+| -------------------- | -------- | ------- | -------------------------------------------------------- |
+| `-k, --key <hex>`    | Required | string  | Private key in hex format (64 characters).               |
+| `--testnet`          | Optional | boolean | Converts key for testnet (default = `mainnet`).          |
+| `-u, --uncompressed` | Optional | boolean | Export uncompressed public key (default = `compressed`). |
 
 ### Restore Wallet
 

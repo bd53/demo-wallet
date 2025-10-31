@@ -1,3 +1,9 @@
+export interface Options {
+  key: string;
+  testnet?: boolean;
+  uncompressed?: boolean;
+}
+
 export interface Metadata {
   version: string;
   createdAt: string;

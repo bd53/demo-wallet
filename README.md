@@ -1,0 +1,235 @@
+# demo-wallet
+
+A minimal self-hosted crypto wallet for offline key management and cold storage.
+
+For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
+
+## Features
+
+- Bitcoin legacy _(p2pkh)_, native segwit _(bech32)_, and wrapped segwit addresses.
+- Ethereum standard EVM-compatible addresses.
+- Native Solana addresses.
+- AES-256-GCM encryption with unique salts.
+- BIP39 mnemonic phrases _(12 or 24 words)_.
+- Scrypt key derivation _(32,768 iterations)_.
+- Unlimited account derivation _(BIP44)_.
+
+## Installation
+
+### Build
+
+1. Download the LTS version of [Node.js](https://nodejs.org/en).
+2. Open a command-line terminal (e.g., Terminal, Command Prompt).
+3. Enter `node --version` to verify the installation.
+4. Run `npm install -g pnpm` to globally install the package manager [pnpm](https://pnpm.io).
+5. Download or clone the repository with `git clone https://github.com/bd53/demo-wallet`.
+6. Install all dependencies with `pnpm i`.
+7. Build the resource with `pnpm build`.
+
+## Usage
+
+Every command shares two common flags:
+
+- `-p, --password <password>`
+- `--online`
+
+If the system has a active network and `--online` is **not** provided, the command will **not** work.
+
+### Generate Wallet
+
+```bash
+# Generate with 24-word mnemonic
+node build/index.js generate -p "password"
+
+# Generate with 12-word mnemonic
+node build/index.js generate -p "password" -w 12
+```
+
+| Flag/Alias                  | Option   | Type    | Description                                  |
+|-----------------------------|----------|---------|----------------------------------------------|
+| `-p, --password <password>` | Required | string  | Password for encryption (min 8 characters).  |
+| `-w, --words <count>`       | Optional | string  | Mnemonic word count (12/24, default = `24`). |
+| `--online`                  | Optional | boolean | Allows running online.                       |
+
+**Note: Generated addresses are fully functional and can receive and hold funds indefinitely.**
+
+To access or move those funds, export the private key _(or mnemonic)_ and import it into a compatible online wallet.
+
+This project is for educational purposes only and is intended to demonstrate a minimal example of offline key management and cold storage, this is **not** financial advice.
+
+### View Your Addresses
+
+```bash
+# Show default account (account 0)
+node build/index.js show -p "password"
+
+# Show specific account (account 5)
+node build/index.js show -p "password" -a 5
+
+# Show default account + QR codes
+node build/index.js show -p "password" --qr
+
+# Show specific account (account 3) + QR codes
+node build/index.js show -p "password" -a 3 --qr
+```
+
+| Flag/Alias                  | Option   | Type    | Description                         |
+|-----------------------------|----------|---------|-------------------------------------|
+| `-p, --password <password>` | Required | string  | Wallet decryption password.         |
+| `-a, --account <index>`     | Optional | number  | Account to show (default = `0`).    |
+| `--qr`                      | Optional | boolean | Displays QR codes for each address. |
+| `--online`                  | Optional | boolean | Allows running online.              |
+
+### Derive Multiple Accounts
+
+Generate multiple receiving addresses from the same seed:
+
+```bash
+# Derive first 5 accounts
+node build/index.js derive -p "password" -c 5
+
+# Derive up to 20 accounts
+node build/index.js derive -p "password" -c 20
+```
+
+| Flag/Alias                  | Option   | Type    | Description                               |
+|-----------------------------|----------|---------|-------------------------------------------|
+| `-p, --password <password>` | Required | string  | Wallet decryption password.               |
+| `-c, --count <number>`      | Optional | number  | Accounts to derive (1–20, default = `5`). |
+| `--online`                  | Optional | boolean | Allows running online.                    |
+
+### Export Mnemonic
+
+```bash
+node build/index.js mnemonic -p "password" --reveal
+```
+
+| Flag/Alias                  | Option   | Type    | Description                 |
+|-----------------------------|----------|---------|-----------------------------|
+| `-p, --password <password>` | Required | string  | Wallet decryption password. |
+| `--reveal`                  | Optional | boolean | Displays mnemonic.          |     
+| `--online`                  | Optional | boolean | Allows running online.      |
+
+### Export Private Key
+
+```bash
+# Export private key for a specific chain
+node build/index.js privatekey -p "password" -c ethereum
+
+# Export private key for (account 1) + QR code
+node build/index.js privatekey -p "password" -c solana -a 1 --qr
+```
+
+| Flag/Alias                  | Option   | Type    | Description                                     |
+|-----------------------------|----------|---------|-------------------------------------------------|
+| `-p, --password <password>` | Required | string  | Wallet decryption password.                     |
+| `-c, --chain <chain>`       | Required | string  | Blockchain: `bitcoin`, `ethereum`, or `solana`. |
+| `-a, --account <index>`     | Optional | number  | Account to export key from (default = `0`).     |
+| `--qr`                      | Optional | boolean | Displays private key as a QR code.              |
+| `--online`                  | Optional | boolean | Allows running online.                          |
+
+**Note: Some tools expect WIF format, convert hex -> WIF offline if needed.**
+
+This command technically defeats the purpose of everything. It’s provided only for users who insist on accessing or managing their funds from another device, which is **not** recommended for secure cold storage setups.
+
+### Restore Wallet
+
+If your local wallet file has been deleted or lost, you can use mnemonic phrase to recover your wallet:
+
+```bash
+node build/index.js restore \
+  -m "witch collapse practice feed shame open despair creek road again ice least" \
+  -p "new-password"
+```
+
+| Flag/Alias                  | Option   | Type    | Description                                     |
+|-----------------------------|----------|---------|-------------------------------------------------|
+| `-m, --mnemonic <phrase>`   | Required | string  | fULL 12 / 24 word recovery phrase.              |
+| `-p, --password <password>` | Required | string  | New password for encryption (min 8 characters). |
+| `--online`                  | Optional | boolean | Allows running online.                          |
+
+### Change Password
+
+```bash
+node build/index.js change-password \
+  -o "current-password" \
+  -n "new-password"
+```
+
+| Flag/Alias             | Option   | Type    | Description                                     |
+|------------------------|----------|---------|-------------------------------------------------|
+| `-o, --old <password>` | Required | string  | Current password.                               |
+| `-n, --new <password>` | Required | string  | New password for encryption (min 8 characters). |
+| `--online`             | Optional | boolean | Allows running online.                          |
+
+### Verify Wallet Integrity
+
+```bash
+node build/index.js verify -p "password"
+```
+
+| Flag/Alias                  | Option   | Type    | Description                 |
+|-----------------------------|----------|---------|-----------------------------|
+| `-p, --password <password>` | Required | string  | Wallet decryption password. |
+| `--online`                  | Optional | boolean | Allows running online.      |
+
+### Delete Wallet
+
+This permanently deletes your wallet file.
+
+Ensure you have your mnemonic backed up in case you ever want to restore it:
+
+```bash
+node build/index.js delete --confirm
+```
+
+| Flag/Alias  | Option   | Type    | Description                  |
+|-------------|----------|---------|------------------------------|
+| `--confirm` | Required | boolean | Required to actually delete. |
+| `--online`  | Optional | boolean | Allows running online.       |
+
+## HD Wallet Structure (BIP44)
+
+This wallet uses the BIP44 standard for hierarchical deterministic wallets:
+
+```
+m / purpose' / coin_type' / account' / change / address_index
+
+Bitcoin:   m/44'/0'/account'/0/0
+Ethereum:  m/44'/60'/account'/0/0
+Solana:    m/44'/501'/account'/0'
+```
+
+- Account 0: Your primary wallet
+- Account 1+: Additional wallets from the same seed
+- All accounts are cryptographically derived from your mnemonic
+
+## Security
+
+- Run only on a clean, offline machine. Disconnect all network interfaces before using.
+- Verify source code integrity (checksum or signature) before building.
+- Use a live OS (e.g., Tails or Ubuntu Live USB) for true air-gap generation.
+- Never store your mnemonic digitally. Use metal or paper backups only.
+- Avoid screenshots, cloud backups, or password managers that sync online.
+- If possible, verify build integrity using a SHA-256 checksum or signed release.
+- Use `--qr` safely, QR codes are generated entirely offline for secure cold wallet transfers.
+- Use `--online` only for testing, as this temporarily enables online mode for address verification, etc. but should never be used with real funds or primary wallets.
+
+This wallet protects against:
+- Remote attacks (air-gapped)
+- Malware (offline generation)
+- Phishing (no online interaction)
+- Exchange hacks (self-custody)
+- Service shutdowns (no dependencies)
+
+This wallet does **not** protect against:
+- Physical theft of the device (use encryption + secure location)
+- $5 wrench attack (use secure locations, don't talk about crypto)
+- Compromised system during generation (use clean OS)
+- Poor mnemonic storage (engrave in metal, use multiple locations)
+- Misuse of `--online` in a production environment
+
+## Additional Resources
+
+- [BIP39 Mnemonic Code](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+- [BIP44 Multi-Account Hierarchy](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)

@@ -1,20 +1,24 @@
 use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce};
 use bip39::{Language, Mnemonic, MnemonicType};
-use clap::{Parser, Subcommand};
+use clap::{Parser};
 use qrcode::{QrCode, render::unicode};
 use scrypt::{password_hash::SaltString, Params};
 use secp256k1::Secp256k1;
-use serde::{Deserialize, Serialize};
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
 use std::{fs::{self, OpenOptions}, io::Write, path::PathBuf};
 use tiny_keccak::{Hasher, Keccak};
 use zeroize::Zeroize;
 
+mod commands;
 mod convert;
+mod types;
 
-const WALLET_DIR_NAME: &str = ".demo-wallet";
-const WALLET_FILE_NAME: &str = "wallet.json";
-const METADATA_FILE_NAME: &str = "metadata.json";
+use commands::Commands;
+use types::*;
+
+const WALLET_DIR: &str = ".demo-wallet";
+const WALLET_FILE: &str = "wallet.json";
+const METADATA_FILE: &str = "metadata.json";
 const PASSWORD_LENGTH: usize = 8;
 const ACCOUNT_MAX: u32 = 20;
 const SCRYPT_LOG_N: u8 = 14;
@@ -28,147 +32,9 @@ struct Cli {
     command: Commands,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    Generate {
-        #[arg(short, long)]
-        password: String,
-        #[arg(short, long, default_value = "24")]
-        words: u32,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Show {
-        #[arg(short, long)]
-        password: String,
-        #[arg(short, long, default_value = "0")]
-        account: u32,
-        #[arg(long, default_value = "false")]
-        qr: bool,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Derive {
-        #[arg(short, long)]
-        password: String,
-        #[arg(short, long, default_value = "5")]
-        count: u32,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Mnemonic {
-        #[arg(short, long)]
-        password: String,
-        #[arg(long, default_value = "false")]
-        reveal: bool,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Privatekey {
-        #[arg(short, long)]
-        password: String,
-        #[arg(short, long)]
-        chain: String,
-        #[arg(short, long, default_value = "0")]
-        account: u32,
-        #[arg(long, default_value = "false")]
-        qr: bool,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Convert {
-        #[arg(short, long)]
-        key: String,
-        #[arg(long, default_value = "false")]
-        testnet: bool,
-        #[arg(short, long, default_value = "false")]
-        uncompressed: bool,
-    },
-    Restore {
-        #[arg(short, long)]
-        mnemonic: String,
-        #[arg(short, long)]
-        password: String,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    ChangePassword {
-        #[arg(short, long)]
-        old: String,
-        #[arg(short, long)]
-        new: String,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Verify {
-        #[arg(short, long)]
-        password: String,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-    Delete {
-        #[arg(long, default_value = "false")]
-        confirm: bool,
-        #[arg(long, default_value = "false")]
-        online: bool,
-    },
-}
-
-#[derive(Serialize, Deserialize)]
-struct EncryptedWallet {
-    iv: String,
-    content: String,
-    tag: String,
-    salt: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Metadata {
-    version: String,
-    created_at: String,
-    address_count: u32,
-    last_accessed: Option<String>,
-}
-
-#[derive(Clone)]
-struct BitcoinAddresses {
-    p2pkh: String,
-    p2wpkh: String,
-    p2sh: String,
-}
-
-struct Addresses {
-    bitcoin: BitcoinAddresses,
-    ethereum: String,
-    solana: String,
-}
-
-struct SecureMnemonic {
-    mnemonic: Mnemonic,
-}
-
-impl Drop for SecureMnemonic {
-    fn drop(&mut self) {
-        // mnemonic doesn't need zeroization as it's handled internally
-    }
-}
-
-impl SecureMnemonic {
-    fn new(mnemonic: Mnemonic) -> Self {
-        Self { mnemonic }
-    }
-    fn phrase(&self) -> String {
-        self.mnemonic.phrase().to_string()
-    }
-    fn to_seed(&self, password: &str) -> Vec<u8> {
-        use bip39::Seed;
-        Seed::new(&self.mnemonic, password).as_bytes().to_vec()
-    }
-}
-
 fn get_wallet_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let home = dirs::home_dir().ok_or("Could not find home directory")?;
-    let wallet_dir = home.join(WALLET_DIR_NAME);
+    let wallet_dir = home.join(WALLET_DIR);
     if !wallet_dir.exists() {
         fs::create_dir_all(&wallet_dir)?;
         #[cfg(unix)]
@@ -181,11 +47,11 @@ fn get_wallet_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
 }
 
 fn get_wallet_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    Ok(get_wallet_dir()?.join(WALLET_FILE_NAME))
+    Ok(get_wallet_dir()?.join(WALLET_FILE))
 }
 
 fn get_metadata_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    Ok(get_wallet_dir()?.join(METADATA_FILE_NAME))
+    Ok(get_wallet_dir()?.join(METADATA_FILE))
 }
 
 fn check_network_interfaces() -> bool {
@@ -645,64 +511,6 @@ fn change_password(old_password: &str, new_password: &str) -> Result<(), Box<dyn
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    match cli.command {
-        Commands::Generate { password, words, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            generate_wallet(&password, words)?;
-        }
-        Commands::Show { password, account, qr, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            show_wallet(&password, account, qr)?;
-        }
-        Commands::Derive { password, count, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            derive_multiple_accounts(&password, count)?;
-        }
-        Commands::Mnemonic { password, reveal, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            export_mnemonic(&password, reveal)?;
-        }
-        Commands::Privatekey { password, chain, account, qr, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            export_private_key(&password, &chain, account, qr)?;
-        }
-        Commands::Convert { key, testnet, uncompressed } => {
-            convert::run_convert(&key, testnet, uncompressed)?;
-        }
-        Commands::Restore { mnemonic, password, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            restore_wallet(&mnemonic, &password)?;
-        }
-        Commands::ChangePassword { old, new, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            change_password(&old, &new)?;
-        }
-        Commands::Verify { password, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            verify_wallet(&password)?;
-        }
-        Commands::Delete { confirm, online } => {
-            if !status(online) {
-                return Ok(());
-            }
-            delete_wallet(confirm)?;
-        }
-    }
+    commands::execute_command(cli.command)?;
     Ok(())
 }

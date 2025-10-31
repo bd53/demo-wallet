@@ -239,7 +239,7 @@ All accounts are cryptographically derived from your mnemonic.
 ## Security
 
 - Run only on a clean, offline machine. Disconnect all network interfaces before using.
-- Use a live OS *(e.g., Debian, Arch, or Fedora)* for true air-gap generation.
+- Use a live OS _(e.g., Debian, Arch, or Fedora)_ for true air-gap generation.
 - Never store your mnemonic digitally. Use metal or paper backups only.
 - Avoid screenshots, cloud backups, or password managers that sync online.
 

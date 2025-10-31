@@ -34,7 +34,7 @@ Just about every command shares two common flags:
 - `-p, --password <password>`
 - `--online`
 
-If the system has a active network and `--online` is **not** provided, the command will **not** work.
+If the system has an active network and `--online` is **not** provided, the command will **not** work.
 
 ### Generate Wallet
 
@@ -47,8 +47,8 @@ node build/index.js generate -p "password" -w 12
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                  |
-|-----------------------------|----------|---------|----------------------------------------------|
-| `-p, --password <password>` | Required | string  | Password for encryption (min 8 characters).  |
+| --------------------------- | -------- | ------- | -------------------------------------------- |
+| `-p, --password <password>` | Required | string  | Password for encryption (min. 8 characters). |
 | `-w, --words <count>`       | Optional | string  | Mnemonic word count (12/24, default = `24`). |
 | `--online`                  | Optional | boolean | Allows running online.                       |
 
@@ -75,7 +75,7 @@ node build/index.js show -p "password" -a 3 --qr
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                         |
-|-----------------------------|----------|---------|-------------------------------------|
+| --------------------------- | -------- | ------- | ----------------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password.         |
 | `-a, --account <index>`     | Optional | number  | Account to show (default = `0`).    |
 | `--qr`                      | Optional | boolean | Displays QR codes for each address. |
@@ -94,7 +94,7 @@ node build/index.js derive -p "password" -c 20
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                               |
-|-----------------------------|----------|---------|-------------------------------------------|
+| --------------------------- | -------- | ------- | ----------------------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password.               |
 | `-c, --count <number>`      | Optional | number  | Accounts to derive (1–20, default = `5`). |
 | `--online`                  | Optional | boolean | Allows running online.                    |
@@ -106,9 +106,9 @@ node build/index.js mnemonic -p "password" --reveal
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                 |
-|-----------------------------|----------|---------|-----------------------------|
+| --------------------------- | -------- | ------- | --------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password. |
-| `--reveal`                  | Optional | boolean | Displays mnemonic.          |     
+| `--reveal`                  | Optional | boolean | Displays mnemonic.          |
 | `--online`                  | Optional | boolean | Allows running online.      |
 
 ### Export Private Key
@@ -122,16 +122,16 @@ node build/index.js privatekey -p "password" -c solana -a 1 --qr
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                                     |
-|-----------------------------|----------|---------|-------------------------------------------------|
+| --------------------------- | -------- | ------- | ----------------------------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password.                     |
 | `-c, --chain <chain>`       | Required | string  | Blockchain: `bitcoin`, `ethereum`, or `solana`. |
 | `-a, --account <index>`     | Optional | number  | Account to export key from (default = `0`).     |
 | `--qr`                      | Optional | boolean | Displays private key as a QR code.              |
 | `--online`                  | Optional | boolean | Allows running online.                          |
 
-**Note: Some tools expect WIF format, convert hex -> WIF offline if needed.**
+**Note: Some tools expect WIF format. Convert hex -> WIF offline if needed.**
 
-This command technically defeats the purpose of everything. It’s provided only for users who insist on accessing or managing their funds from another device, which is **not** recommended for secure cold storage setups.
+This command technically defeats the purpose of everything. It's provided only for users who insist on accessing or managing their funds from another device, which is **not** recommended for secure cold storage setups.
 
 ### Convert Private Key (hex -> WIF)
 
@@ -139,18 +139,18 @@ This command technically defeats the purpose of everything. It’s provided only
 # Convert a Bitcoin private key (mainnet)
 node build/convert.js -k <hex-private-key>
 
-# Convert a Bitcoin provate key (testnet)
+# Convert a Bitcoin private key (testnet)
 node build/convert.js -k <hex-private-key> --testnet
 ```
 
 | Flag/Alias        | Option   | Type    | Description                                     |
-|-------------------|----------|---------|-------------------------------------------------|
-| `-k, --key <hex>` | Required | string  | Private key in hex format (64-character).       |
+| ----------------- | -------- | ------- | ----------------------------------------------- |
+| `-k, --key <hex>` | Required | string  | Private key in hex format (64 characters).      |
 | `--testnet`       | Optional | boolean | Converts key for testnet (default = `mainnet`). |
 
 ### Restore Wallet
 
-If your local wallet file has been deleted or lost, you can use mnemonic phrase to recover your wallet:
+If your local wallet file has been deleted or lost, you can use a mnemonic phrase to recover your wallet:
 
 ```bash
 node build/index.js restore \
@@ -158,11 +158,11 @@ node build/index.js restore \
   -p "new-password"
 ```
 
-| Flag/Alias                  | Option   | Type    | Description                                     |
-|-----------------------------|----------|---------|-------------------------------------------------|
-| `-m, --mnemonic <phrase>`   | Required | string  | fULL 12 / 24 word recovery phrase.              |
-| `-p, --password <password>` | Required | string  | New password for encryption (min 8 characters). |
-| `--online`                  | Optional | boolean | Allows running online.                          |
+| Flag/Alias                  | Option   | Type    | Description                                      |
+| --------------------------- | -------- | ------- | ------------------------------------------------ |
+| `-m, --mnemonic <phrase>`   | Required | string  | Full 12/24-word recovery phrase.                 |
+| `-p, --password <password>` | Required | string  | New password for encryption (min. 8 characters). |
+| `--online`                  | Optional | boolean | Allows running online.                           |
 
 ### Change Password
 
@@ -172,11 +172,11 @@ node build/index.js change-password \
   -n "new-password"
 ```
 
-| Flag/Alias             | Option   | Type    | Description                                     |
-|------------------------|----------|---------|-------------------------------------------------|
-| `-o, --old <password>` | Required | string  | Current password.                               |
-| `-n, --new <password>` | Required | string  | New password for encryption (min 8 characters). |
-| `--online`             | Optional | boolean | Allows running online.                          |
+| Flag/Alias             | Option   | Type    | Description                                      |
+| ---------------------- | -------- | ------- | ------------------------------------------------ |
+| `-o, --old <password>` | Required | string  | Current password.                                |
+| `-n, --new <password>` | Required | string  | New password for encryption (min. 8 characters). |
+| `--online`             | Optional | boolean | Allows running online.                           |
 
 ### Verify Wallet Integrity
 
@@ -185,7 +185,7 @@ node build/index.js verify -p "password"
 ```
 
 | Flag/Alias                  | Option   | Type    | Description                 |
-|-----------------------------|----------|---------|-----------------------------|
+| --------------------------- | -------- | ------- | --------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password. |
 | `--online`                  | Optional | boolean | Allows running online.      |
 
@@ -200,7 +200,7 @@ node build/index.js delete --confirm
 ```
 
 | Flag/Alias  | Option   | Type    | Description                  |
-|-------------|----------|---------|------------------------------|
+| ----------- | -------- | ------- | ---------------------------- |
 | `--confirm` | Required | boolean | Required to actually delete. |
 | `--online`  | Optional | boolean | Allows running online.       |
 
@@ -229,6 +229,7 @@ All accounts are cryptographically derived from your mnemonic.
 - Avoid screenshots, cloud backups, or password managers that sync online.
 
 This wallet protects against:
+
 - Remote attacks _(air-gapped)_
 - Malware _(offline generation)_
 - Phishing _(no online interaction)_
@@ -236,6 +237,7 @@ This wallet protects against:
 - Service shutdowns _(no dependencies)_
 
 This wallet does **not** protect against:
+
 - Physical theft of the device _(use encryption + secure location)_
 - $5 wrench attack _(use secure locations + don't talk about crypto)_
 - Compromised system during generation _(use clean/live OS)_

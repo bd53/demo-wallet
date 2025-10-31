@@ -13,6 +13,7 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 - BIP39 mnemonic phrases _(12 or 24 words)_.
 - Scrypt key derivation _(32,768 iterations)_.
 - Unlimited account derivation _(BIP44)_.
+- Bitcoin private key conversion _(hex -> WIF)_.
 
 ## Installation
 
@@ -28,7 +29,7 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 
 ## Usage
 
-Every command shares two common flags:
+Just about every command shares two common flags:
 
 - `-p, --password <password>`
 - `--online`
@@ -132,6 +133,21 @@ node build/index.js privatekey -p "password" -c solana -a 1 --qr
 
 This command technically defeats the purpose of everything. It’s provided only for users who insist on accessing or managing their funds from another device, which is **not** recommended for secure cold storage setups.
 
+### Convert Private Key (hex -> WIF)
+
+```bash
+# Convert a Bitcoin private key (mainnet)
+node build/convert.js -k <hex-private-key>
+
+# Convert a Bitcoin provate key (testnet)
+node build/convert.js -k <hex-private-key> --testnet
+```
+
+| Flag/Alias        | Option   | Type    | Description                                     |
+|-------------------|----------|---------|-------------------------------------------------|
+| `-k, --key <hex>` | Required | string  | Private key in hex format (64-character).       |
+| `--testnet`       | Optional | boolean | Converts key for testnet (default = `mainnet`). |
+
 ### Restore Wallet
 
 If your local wallet file has been deleted or lost, you can use mnemonic phrase to recover your wallet:
@@ -195,41 +211,37 @@ This wallet uses the BIP44 standard for hierarchical deterministic wallets:
 ```
 m / purpose' / coin_type' / account' / change / address_index
 
-Bitcoin:   m/44'/0'/account'/0/0
-Ethereum:  m/44'/60'/account'/0/0
-Solana:    m/44'/501'/account'/0'
+Bitcoin: m/44'/0'/account'/0/0
+Ethereum: m/44'/60'/account'/0/0
+Solana: m/44'/501'/account'/0'
 ```
 
 - Account 0: Your primary wallet
 - Account 1+: Additional wallets from the same seed
-- All accounts are cryptographically derived from your mnemonic
+
+All accounts are cryptographically derived from your mnemonic.
 
 ## Security
 
 - Run only on a clean, offline machine. Disconnect all network interfaces before using.
-- Verify source code integrity (checksum or signature) before building.
-- Use a live OS (e.g., Tails or Ubuntu Live USB) for true air-gap generation.
+- Use a live OS _(e.g., Debian, Arch, or Fedora)_ for true air-gap generation.
 - Never store your mnemonic digitally. Use metal or paper backups only.
 - Avoid screenshots, cloud backups, or password managers that sync online.
-- If possible, verify build integrity using a SHA-256 checksum or signed release.
-- Use `--qr` safely, QR codes are generated entirely offline for secure cold wallet transfers.
-- Use `--online` only for testing, as this temporarily enables online mode for address verification, etc. but should never be used with real funds or primary wallets.
 
 This wallet protects against:
-- Remote attacks (air-gapped)
-- Malware (offline generation)
-- Phishing (no online interaction)
-- Exchange hacks (self-custody)
-- Service shutdowns (no dependencies)
+- Remote attacks _(air-gapped)_
+- Malware _(offline generation)_
+- Phishing _(no online interaction)_
+- Exchange hacks _(self-custody)_
+- Service shutdowns _(no dependencies)_
 
 This wallet does **not** protect against:
-- Physical theft of the device (use encryption + secure location)
-- $5 wrench attack (use secure locations, don't talk about crypto)
-- Compromised system during generation (use clean OS)
-- Poor mnemonic storage (engrave in metal, use multiple locations)
-- Misuse of `--online` in a production environment
+- Physical theft of the device _(use encryption + secure location)_
+- $5 wrench attack _(use secure locations + don't talk about crypto)_
+- Compromised system during generation _(use clean/live OS)_
+- Poor mnemonic storage _(engrave in metal + use multiple locations)_
 
 ## Additional Resources
 
-- [BIP39 Mnemonic Code](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+- [BIP39 Mnemonic](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
 - [BIP44 Multi-Account Hierarchy](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)

@@ -20,6 +20,7 @@
     "bitcoinjs-lib": "^7.0.0",
     "bs58": "^6.0.0",
     "commander": "^14.0.2",
+    "ecpair": "^3.0.0",
     "ethers": "^6.15.0",
     "qrcode": "^1.5.4"
   },

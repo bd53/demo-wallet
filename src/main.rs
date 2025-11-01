@@ -2,8 +2,7 @@ use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm};
 use bip39::{Language, Mnemonic, MnemonicType};
 use clap::{Parser};
 use qrcode::{QrCode, render::unicode};
-use scrypt::{password_hash::SaltString, Params};
-use secp256k1::Secp256k1;
+use scrypt::{password_hash::{SaltString, rand_core::{OsRng, RngCore}}, Params};
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
 use std::{fs::{self, OpenOptions}, io::{Write, Seek, SeekFrom}, path::PathBuf};
 use tiny_keccak::{Hasher, Keccak};
@@ -103,14 +102,13 @@ fn check_wallet_not_found() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWallet, Box<dyn std::error::Error>> {
-    let salt = SaltString::generate(&mut rand::thread_rng());
+    let salt = SaltString::generate(&mut OsRng);
     let params = Params::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P, 32)?;
     let mut key = Zeroizing::new(vec![0u8; 32]);
     scrypt::scrypt(password.as_bytes(), salt.as_str().as_bytes(), &params, &mut key)?;
     let cipher = Aes256Gcm::new_from_slice(&key)?;
     let mut iv = [0u8; 12];
-    use rand::RngCore;
-    rand::thread_rng().fill_bytes(&mut iv);
+    OsRng.fill_bytes(&mut iv);
     let nonce = &iv.into();
     let ciphertext = cipher.encrypt(nonce, mnemonic.as_bytes()).map_err(|e| format!("Encryption failed: {:?}", e))?;
     let tag_start = ciphertext.len() - 16;
@@ -139,26 +137,29 @@ fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<SecureMn
 }
 
 fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses, Box<dyn std::error::Error>> {
-    use bitcoin::{ Address, Network, PublicKey, PrivateKey, util::bip32::{DerivationPath, ExtendedPrivKey, ChildNumber}, secp256k1::Secp256k1 };
+    use bitcoin::{ Address, Network, NetworkKind, PublicKey, PrivateKey, CompressedPublicKey, bip32::{DerivationPath, Xpriv, ChildNumber}, secp256k1::Secp256k1 };
     let secp = Secp256k1::new();
-    let xprv = ExtendedPrivKey::new_master(Network::Bitcoin, seed)?;
+    let xprv = Xpriv::new_master(Network::Bitcoin, seed)?;
     let path = DerivationPath::from(vec![ChildNumber::from_hardened_idx(44)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_normal_idx(0)?, ChildNumber::from_normal_idx(index)?]);
     let derived = xprv.derive_priv(&secp, &path)?;
-    let private_key = PrivateKey::new(derived.private_key, Network::Bitcoin);
+    let network_kind: NetworkKind = Network::Bitcoin.into();
+    let private_key = PrivateKey::new(derived.private_key, network_kind);
     let public_key = PublicKey::from_private_key(&secp, &private_key);
-    let p2pkh = Address::p2pkh(&public_key, Network::Bitcoin).to_string();
-    let p2wpkh = Address::p2wpkh(&public_key, Network::Bitcoin)?.to_string();
-    let p2sh = Address::p2shwpkh(&public_key, Network::Bitcoin)?.to_string();
+    let p2pkh = Address::p2pkh(public_key, Network::Bitcoin).to_string();
+    let compressed_pk = CompressedPublicKey::from_private_key(&secp, &private_key).map_err(|e| format!("Failed to create compressed public key: {:?}", e))?;
+    let p2wpkh = Address::p2wpkh(&compressed_pk, Network::Bitcoin).to_string();
+    let p2sh = Address::p2shwpkh(&compressed_pk, network_kind).to_string();
     Ok(BitcoinAddresses { p2pkh, p2wpkh, p2sh })
 }
 
 fn derive_ethereum_address(seed: &[u8], index: u32) -> Result<String, Box<dyn std::error::Error>> {
     use tiny_hderive::bip32::ExtendedPrivKey;
+    use bitcoin::secp256k1::{Secp256k1, SecretKey, PublicKey};
     let path = format!("m/44'/60'/0'/0/{}", index);
     let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-    let secret = secp256k1::SecretKey::from_slice(&ext.secret())?;
+    let secret = SecretKey::from_slice(&ext.secret())?;
     let secp = Secp256k1::new();
-    let public = secp256k1::PublicKey::from_secret_key(&secp, &secret);
+    let public = PublicKey::from_secret_key(&secp, &secret);
     let public_bytes = public.serialize_uncompressed();
     let mut hasher = Keccak::v256();
     hasher.update(&public_bytes[1..]);
@@ -356,9 +357,9 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
     let secure_seed = secure_mnemonic.to_seed("");
     let privkey = match chain {
         "bitcoin" => {
-            use bitcoin::{ Network, util::bip32::{DerivationPath, ExtendedPrivKey, ChildNumber}, secp256k1::Secp256k1 };
+            use bitcoin::{ Network, bip32::{DerivationPath, Xpriv, ChildNumber}, secp256k1::Secp256k1 };
             let secp = Secp256k1::new();
-            let xprv = ExtendedPrivKey::new_master(Network::Bitcoin, secure_seed.as_bytes())?;
+            let xprv = Xpriv::new_master(Network::Bitcoin, secure_seed.as_bytes())?;
             let path = DerivationPath::from(vec![ChildNumber::from_hardened_idx(44)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_normal_idx(0)?, ChildNumber::from_normal_idx(index)?]);
             let derived = xprv.derive_priv(&secp, &path)?;
             Zeroizing::new(hex::encode(derived.private_key.secret_bytes()))

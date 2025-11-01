@@ -1,1 +1,0 @@
-rd_("kdemo_wallet")

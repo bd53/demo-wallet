@@ -1,5 +1,5 @@
 (function() {
-    var implementors = Object.fromEntries([["demo_wallet",[["impl CommandFactory for <a class=\"struct\" href=\"demo_wallet/struct.Cli.html\" title=\"struct demo_wallet::Cli\">Cli</a>"]]]]);
+    var implementors = Object.fromEntries([["demo-wallet",[["impl CommandFactory for <a class=\"struct\" href=\"demo_wallet/struct.Cli.html\" title=\"struct demo-wallet::Cli\">Cli</a>"]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {

@@ -6,14 +6,18 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 
 ## Features
 
-- Bitcoin legacy _(p2pkh)_, native segwit _(bech32)_, and wrapped segwit addresses.
-- Ethereum standard EVM-compatible addresses.
-- Native Solana addresses.
-- AES-256-GCM encryption with unique salts.
+- Bitcoin legacy _(P2PKH)_, native SegWit _(bech32/P2WPKH)_, and wrapped SegWit _(P2SH-P2WPKH)_ addresses.
+- Ethereum EVM-compatible addresses.
+- Solana native addresses.
+- AES-256-GCM encryption with unique random IVs and salts per wallet.
 - BIP39 mnemonic phrases _(12 or 24 words)_.
-- Scrypt key derivation _(32,768 iterations)_.
-- Unlimited account derivation _(BIP44)_.
+- Scrypt key derivation _(`N=16384`, `r=8`, `p=1`, 32-byte key)_.
+- Deterministic account derivation _(BIP44, 20 accounts per wallet + configurable)_.
+- Secure zeroization of sensitive data _(mnemonics, keys, seeds)_.
+- Wallet restore from mnemonic phrases.
+- Optional QR output for wallet viewing.
 - Bitcoin private key conversion _(hex -> WIF, compressed or uncompressed)_.
+- Wallet metadata tracking _(creation date, last accessed, derived accounts)_.
 
 ## Installation
 
@@ -43,13 +47,6 @@ cargo run --release -- <command> [options]
 ./target/release/demo-wallet <command> [options]
 ```
 
-Each command shares two common flags:
-
-- `-p, --password <password>`
-- `--online`
-
-If the system has an active network and `--online` is **not** provided, the command will **not** work.
-
 ### Generate Wallet
 
 ```bash
@@ -64,7 +61,6 @@ cargo run -- generate -p "password" -w 12
 | --------------------------- | -------- | ------- | -------------------------------------------- |
 | `-p, --password <password>` | Required | string  | Password for encryption (min. 8 characters). |
 | `-w, --words <count>`       | Optional | string  | Mnemonic word count (12/24, default = `24`). |
-| `--online`                  | Optional | boolean | Allows running online.                       |
 
 **Note: Generated addresses are fully functional and can receive and hold funds indefinitely.**
 
@@ -93,7 +89,6 @@ cargo run -- show -p "password" -a 3 --qr
 | `-p, --password <password>` | Required | string  | Wallet decryption password.         |
 | `-a, --account <index>`     | Optional | number  | Account to show (default = `0`).    |
 | `--qr`                      | Optional | boolean | Displays QR codes for each address. |
-| `--online`                  | Optional | boolean | Allows running online.              |
 
 ### Derive Multiple Accounts
 
@@ -111,7 +106,6 @@ cargo run -- derive -p "password" -c 20
 | --------------------------- | -------- | ------- | ----------------------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password.               |
 | `-c, --count <number>`      | Optional | number  | Accounts to derive (1–20, default = `5`). |
-| `--online`                  | Optional | boolean | Allows running online.                    |
 
 ### Export Mnemonic
 
@@ -123,7 +117,6 @@ cargo run -- mnemonic -p "password" --reveal
 | --------------------------- | -------- | ------- | --------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password. |
 | `--reveal`                  | Optional | boolean | Displays mnemonic.          |
-| `--online`                  | Optional | boolean | Allows running online.      |
 
 ### Export Private Key
 
@@ -141,7 +134,6 @@ cargo run -- privatekey -p "password" -c solana -a 1 --qr
 | `-c, --chain <chain>`       | Required | string  | Blockchain: `bitcoin`, `ethereum`, or `solana`. |
 | `-a, --account <index>`     | Optional | number  | Account to export key from (default = `0`).     |
 | `--qr`                      | Optional | boolean | Displays private key as a QR code.              |
-| `--online`                  | Optional | boolean | Allows running online.                          |
 
 **Note: Some tools expect WIF format. Convert hex -> WIF offline if needed.**
 
@@ -181,7 +173,6 @@ cargo run -- restore -m "witch collapse practice feed shame open despair creek r
 | --------------------------- | -------- | ------- | ------------------------------------------------ |
 | `-m, --mnemonic <phrase>`   | Required | string  | Full 12/24 word recovery phrase.                 |
 | `-p, --password <password>` | Required | string  | New password for encryption (min. 8 characters). |
-| `--online`                  | Optional | boolean | Allows running online.                           |
 
 ### Change Password
 
@@ -193,7 +184,6 @@ cargo run -- change-password -o "current-password" -n "new-password"
 | ---------------------- | -------- | ------- | ------------------------------------------------ |
 | `-o, --old <password>` | Required | string  | Current password.                                |
 | `-n, --new <password>` | Required | string  | New password for encryption (min. 8 characters). |
-| `--online`             | Optional | boolean | Allows running online.                           |
 
 ### Verify Wallet Integrity
 
@@ -204,7 +194,6 @@ cargo run -- verify -p "password"
 | Flag/Alias                  | Option   | Type    | Description                 |
 | --------------------------- | -------- | ------- | --------------------------- |
 | `-p, --password <password>` | Required | string  | Wallet decryption password. |
-| `--online`                  | Optional | boolean | Allows running online.      |
 
 ### Delete Wallet
 
@@ -217,7 +206,6 @@ cargo run -- delete --confirm
 | Flag/Alias  | Option   | Type    | Description                  |
 | ----------- | -------- | ------- | ---------------------------- |
 | `--confirm` | Required | boolean | Required to actually delete. |
-| `--online`  | Optional | boolean | Allows running online.       |
 
 ## HD Wallet Structure (BIP44)
 
@@ -255,7 +243,7 @@ This wallet does **not** protect against:
 
 - Physical theft of the device _(use encryption + secure location)_.
 - $5 wrench attack _(use secure locations + don't talk about crypto)_.
-- Compromised system during generation _(use clean/live OS)_.
+- Compromised system during generation _(use clean + live OS)_.
 - Poor mnemonic storage _(engrave in metal + use multiple locations)_.
 
 ## Additional Resources

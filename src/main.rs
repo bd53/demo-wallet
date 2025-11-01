@@ -1,13 +1,13 @@
-use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce};
+use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm};
 use bip39::{Language, Mnemonic, MnemonicType};
 use clap::{Parser};
 use qrcode::{QrCode, render::unicode};
 use scrypt::{password_hash::SaltString, Params};
 use secp256k1::Secp256k1;
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
-use std::{fs::{self, OpenOptions}, io::Write, path::PathBuf};
+use std::{fs::{self, OpenOptions}, io::{Write, Seek, SeekFrom}, path::PathBuf};
 use tiny_keccak::{Hasher, Keccak};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 mod commands;
 mod convert;
@@ -52,25 +52,6 @@ fn get_wallet_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 
 fn get_metadata_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(get_wallet_dir()?.join(METADATA_FILE))
-}
-
-fn check_network_interfaces() -> bool {
-    if let Ok(interfaces) = get_if_addrs::get_if_addrs() {
-        for iface in interfaces {
-            if !iface.is_loopback() {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn status(online: bool) -> bool {
-    if check_network_interfaces() && !online {
-        println!("Network interfaces are active. Disconnect or use --online to override.");
-        return false;
-    }
-    true
 }
 
 fn validate_password(password: &str) -> bool {
@@ -124,14 +105,13 @@ fn check_wallet_not_found() -> Result<bool, Box<dyn std::error::Error>> {
 fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWallet, Box<dyn std::error::Error>> {
     let salt = SaltString::generate(&mut rand::thread_rng());
     let params = Params::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P, 32)?;
-    let mut key = vec![0u8; 32];
+    let mut key = Zeroizing::new(vec![0u8; 32]);
     scrypt::scrypt(password.as_bytes(), salt.as_str().as_bytes(), &params, &mut key)?;
     let cipher = Aes256Gcm::new_from_slice(&key)?;
-    key.zeroize();
     let mut iv = [0u8; 12];
     use rand::RngCore;
     rand::thread_rng().fill_bytes(&mut iv);
-    let nonce = Nonce::from_slice(&iv);
+    let nonce = &iv.into();
     let ciphertext = cipher.encrypt(nonce, mnemonic.as_bytes()).map_err(|e| format!("Encryption failed: {:?}", e))?;
     let tag_start = ciphertext.len() - 16;
     let content = hex::encode(&ciphertext[..tag_start]);
@@ -141,21 +121,21 @@ fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWallet, B
 
 fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<SecureMnemonic, Box<dyn std::error::Error>> {
     let params = Params::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P, 32)?;
-    let mut key = vec![0u8; 32];
+    let mut key = Zeroizing::new(vec![0u8; 32]);
     scrypt::scrypt(password.as_bytes(), wallet.salt.as_bytes(), &params, &mut key)?;
     let cipher = Aes256Gcm::new_from_slice(&key)?;
-    key.zeroize();
     let iv = hex::decode(&wallet.iv)?;
-    let nonce = Nonce::from_slice(&iv);
+    let iv_array: [u8; 12] = iv.as_slice().try_into().map_err(|_| "Invalid IV length")?;
+    let nonce = &iv_array.into();
     let content = hex::decode(&wallet.content)?;
     let tag = hex::decode(&wallet.tag)?;
     let mut ciphertext = content;
     ciphertext.extend_from_slice(&tag);
-    let mut plaintext = cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|_| "Decryption failed. Invalid password or corrupted wallet file.")?;
+    let plaintext = Zeroizing::new(cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|_| "Decryption failed. Invalid password or corrupted wallet file.")?);
     let mnemonic_str = std::str::from_utf8(&plaintext)?;
-    let mnemonic = Mnemonic::from_phrase(mnemonic_str, Language::English)?;
-    plaintext.zeroize();
-    Ok(SecureMnemonic::new(mnemonic))
+    let _ = Mnemonic::from_phrase(mnemonic_str, Language::English).map_err(|_| "Invalid mnemonic in wallet file")?;
+    let secure = SecureMnemonic::from_phrase(mnemonic_str.to_string());
+    Ok(secure)
 }
 
 fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses, Box<dyn std::error::Error>> {
@@ -188,7 +168,7 @@ fn derive_ethereum_address(seed: &[u8], index: u32) -> Result<String, Box<dyn st
     Ok(address)
 }
 
-fn derive_solana_address(seed: &[u8], index: u32) -> Result<(String, Vec<u8>), Box<dyn std::error::Error>> {
+fn derive_solana_address(seed: &[u8], index: u32) -> Result<(String, Zeroizing<Vec<u8>>), Box<dyn std::error::Error>> {
     use tiny_hderive::bip32::ExtendedPrivKey;
     let path = format!("m/44'/501'/{}'", index);
     let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
@@ -197,16 +177,16 @@ fn derive_solana_address(seed: &[u8], index: u32) -> Result<(String, Vec<u8>), B
     seed_bytes.copy_from_slice(&secret_bytes[..32]);
     let keypair = SolanaKeypair::from_seed(&seed_bytes)?;
     let address = keypair.pubkey().to_string();
-    let secret_key = keypair.to_bytes().to_vec();
+    let secret_key = Zeroizing::new(keypair.to_bytes().to_vec());
+    seed_bytes.zeroize();
     Ok((address, secret_key))
 }
 
-fn derive_all_addresses(secure_mnemonic: &SecureMnemonic, index: u32) -> Result<Addresses, Box<dyn std::error::Error>> {
-    let mut seed = secure_mnemonic.to_seed("");
-    let bitcoin = derive_bitcoin_addresses(&seed, index)?;
-    let ethereum = derive_ethereum_address(&seed, index)?;
-    let (solana, _) = derive_solana_address(&seed, index)?;
-    seed.zeroize();
+fn derive_all_addresses(secure_seed: &SecureSeed, index: u32) -> Result<Addresses, Box<dyn std::error::Error>> {
+    let seed = secure_seed.as_bytes();
+    let bitcoin = derive_bitcoin_addresses(seed, index)?;
+    let ethereum = derive_ethereum_address(seed, index)?;
+    let (solana, _secret) = derive_solana_address(seed, index)?;
     Ok(Addresses { bitcoin, ethereum, solana })
 }
 
@@ -273,8 +253,9 @@ fn generate_wallet(password: &str, words: u32) -> Result<(), Box<dyn std::error:
         }
     };
     let mnemonic = Mnemonic::new(word_count, Language::English);
-    let secure_mnemonic = SecureMnemonic::new(mnemonic);
-    let encrypted = encrypt_mnemonic(&secure_mnemonic.phrase(), password)?;
+    let phrase = mnemonic.phrase().to_string();
+    let secure_mnemonic = SecureMnemonic::from_phrase(phrase.clone());
+    let encrypted = encrypt_mnemonic(&phrase, password)?;
     let json = serde_json::to_string_pretty(&encrypted)?;
     let wallet_file = get_wallet_file()?;
     fs::write(&wallet_file, json)?;
@@ -285,13 +266,14 @@ fn generate_wallet(password: &str, words: u32) -> Result<(), Box<dyn std::error:
     }
     let metadata = Metadata { version: "2.0".to_string(), created_at: chrono::Utc::now().to_rfc3339(), address_count: 1, last_accessed: None };
     save_metadata(&metadata)?;
-    let addresses = derive_all_addresses(&secure_mnemonic, 0)?;
+    let secure_seed = secure_mnemonic.to_seed("");
+    let addresses = derive_all_addresses(&secure_seed, 0)?;
     println!("\nWallet generated successfully.\n");
     println!("Write down your mnemonic phrase and store it securely offline.");
-    println!("Use the `mnemonic --reveal` command to view it (only on an air-gapped machine).\n");
+    println!("Use the `mnemonic --reveal` command to view it.\n");
     display_addresses(&addresses, 0);
     println!("Wallet stored in: {}", wallet_file.display());
-    println!("Metadata stored in: {}", get_metadata_file()?.display());
+    println!("Metadata stored in: {}\n", get_metadata_file()?.display());
     Ok(())
 }
 
@@ -303,7 +285,8 @@ fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn std
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
     let secure_mnemonic = decrypt_mnemonic(&wallet, password)?;
-    let addresses = derive_all_addresses(&secure_mnemonic, account)?;
+    let secure_seed = secure_mnemonic.to_seed("");
+    let addresses = derive_all_addresses(&secure_seed, account)?;
     update_metadata(None)?;
     display_addresses(&addresses, account);
     if qr {
@@ -326,9 +309,10 @@ fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dyn st
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
     let secure_mnemonic = decrypt_mnemonic(&wallet, password)?;
+    let secure_seed = secure_mnemonic.to_seed("");
     println!("\nDeriving {} account(s)...\n", count);
     for i in 0..count {
-        let addresses = derive_all_addresses(&secure_mnemonic, i)?;
+        let addresses = derive_all_addresses(&secure_seed, i)?;
         println!("--------------------------------------------------------------");
         println!("Account {}:", i);
         println!("  Bitcoin (SegWit): {}", addresses.bitcoin.p2wpkh);
@@ -349,14 +333,14 @@ fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::erro
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
     let secure_mnemonic = decrypt_mnemonic(&wallet, password)?;
     if !reveal {
-        println!("Mnemonic hidden. Use --reveal to explicitly show it (only on an air-gapped machine).");
+        println!("\nMnemonic hidden. Use --reveal to explicitly show it.\n");
         update_metadata(None)?;
         return Ok(());
     }
-    println!("\nDo NOT share this phrase.\n");
+    println!("\nDo NOT share.\n");
     println!("Your mnemonic phrase:\n{}\n", secure_mnemonic.phrase());
     println!("Write this down on paper and store in a secure location.");
-    println!("Never store it digitally or share it with anyone.\n");
+    println!("Never store it digitally, take screenshots, or share it with anyone.\n");
     update_metadata(None)?;
     Ok(())
 }
@@ -369,41 +353,37 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
     let secure_mnemonic = decrypt_mnemonic(&wallet, password)?;
-    let mut seed = secure_mnemonic.to_seed("");
+    let secure_seed = secure_mnemonic.to_seed("");
     let privkey = match chain {
         "bitcoin" => {
             use bitcoin::{ Network, util::bip32::{DerivationPath, ExtendedPrivKey, ChildNumber}, secp256k1::Secp256k1 };
             let secp = Secp256k1::new();
-            let xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &seed)?;
+            let xprv = ExtendedPrivKey::new_master(Network::Bitcoin, secure_seed.as_bytes())?;
             let path = DerivationPath::from(vec![ChildNumber::from_hardened_idx(44)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_normal_idx(0)?, ChildNumber::from_normal_idx(index)?]);
             let derived = xprv.derive_priv(&secp, &path)?;
-            hex::encode(derived.private_key.secret_bytes())
+            Zeroizing::new(hex::encode(derived.private_key.secret_bytes()))
         },
         "ethereum" => {
             use tiny_hderive::bip32::ExtendedPrivKey;
             let path = format!("m/44'/60'/0'/0/{}", index);
-            let ext = ExtendedPrivKey::derive(&seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-            format!("0x{}", hex::encode(ext.secret()))
+            let ext = ExtendedPrivKey::derive(secure_seed.as_bytes(), path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
+            Zeroizing::new(format!("0x{}", hex::encode(ext.secret())))
         },
         "solana" => {
-            let (_, secret_key) = derive_solana_address(&seed, index)?;
-            bs58::encode(secret_key).into_string()
+            let (_address, secret_key) = derive_solana_address(secure_seed.as_bytes(), index)?;
+            Zeroizing::new(bs58::encode(&*secret_key).into_string())
         },
         _ => {
-            println!("Unsupported chain. Use: bitcoin, ethereum, or solana");
-            seed.zeroize();
-            return Ok(());
+            return Err(format!("Unsupported chain: {}. Use: bitcoin, ethereum, or solana", chain).into());
         }
     };
-    seed.zeroize();
-    println!("\nDo NOT share this key.\n");
-    println!("Only use it to manage funds by importing it into a trusted online wallet.\n");
-    println!("{} Private Key (Account {}):\n{}\n", chain.to_uppercase(), index, privkey);
+    println!("\nDo NOT share.\n");
+    println!("{} Private Key (Account {}):\n{}\n", chain.to_uppercase(), index, &*privkey);
+    println!("Only import this into trusted wallets on secure devices.\n");
     if qr {
         generate_qr_code(&privkey, "Private Key")?;
     }
     update_metadata(None)?;
-
     Ok(())
 }
 
@@ -412,9 +392,9 @@ fn restore_wallet(mnemonic: &str, password: &str) -> Result<(), Box<dyn std::err
         return Ok(());
     }
     let trimmed = mnemonic.trim();
-    let parsed_mnemonic = Mnemonic::from_phrase(trimmed, Language::English).map_err(|_| "Invalid mnemonic phrase.")?;
-    let secure_mnemonic = SecureMnemonic::new(parsed_mnemonic);
-    let encrypted = encrypt_mnemonic(&secure_mnemonic.phrase(), password)?;
+    let _parsed_mnemonic = Mnemonic::from_phrase(trimmed, Language::English).map_err(|_| "Invalid mnemonic phrase.")?;
+    let secure_mnemonic = SecureMnemonic::from_phrase(trimmed.to_string());
+    let encrypted = encrypt_mnemonic(secure_mnemonic.phrase(), password)?;
     let json = serde_json::to_string_pretty(&encrypted)?;
     let wallet_file = get_wallet_file()?;
     fs::write(&wallet_file, json)?;
@@ -425,7 +405,8 @@ fn restore_wallet(mnemonic: &str, password: &str) -> Result<(), Box<dyn std::err
     }
     let metadata = Metadata { version: "2.0".to_string(), created_at: chrono::Utc::now().to_rfc3339(), address_count: 1, last_accessed: None };
     save_metadata(&metadata)?;
-    let addresses = derive_all_addresses(&secure_mnemonic, 0)?;
+    let secure_seed = secure_mnemonic.to_seed("");
+    let addresses = derive_all_addresses(&secure_seed, 0)?;
     println!("\nWallet restored successfully.\n");
     display_addresses(&addresses, 0);
     update_metadata(None)?;
@@ -440,14 +421,14 @@ fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
     let _secure_mnemonic = decrypt_mnemonic(&wallet, password)?;
-    println!("Wallet file is valid and password is correct.");
+    println!("\nWallet file is valid and password is correct.");
     if let Some(metadata) = load_metadata()? {
         println!("\nWallet Info:");
         println!("   Version: {}", metadata.version);
         println!("   Created: {}", metadata.created_at);
-        println!("   Accounts: {}", metadata.address_count);
+        println!("   Accounts: {}\n", metadata.address_count);
         if let Some(last_accessed) = &metadata.last_accessed {
-            println!("   Last Accessed: {}", last_accessed);
+            println!("   Last Accessed: {}\n", last_accessed);
         }
     }
     Ok(())
@@ -458,23 +439,35 @@ fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if !confirm {
-        println!("This will permanently delete your wallet file.");
-        println!("Use --confirm flag to proceed: delete --confirm");
+        println!("\nThis will permanently delete your wallet file.");
+        println!("Make absolutely sure you have your mnemonic phrase backed up.");
+        println!("\nUse --confirm flag to proceed: delete --confirm\n");
         return Ok(());
     }
     let wallet_file = get_wallet_file()?;
     if let Ok(metadata) = fs::metadata(&wallet_file) {
         let file_size = metadata.len() as usize;
-        if let Ok(mut file) = OpenOptions::new().write(true).open(&wallet_file) {
-            let zeros = vec![0u8; file_size.min(65536)];
-            let mut written = 0;
-            while written < file_size {
-                let to_write = (file_size - written).min(zeros.len());
-                if file.write_all(&zeros[..to_write]).is_err() {
-                    eprintln!("Failed to securely overwrite wallet file");
-                    break;
+        match OpenOptions::new().write(true).open(&wallet_file) {
+            Ok(mut file) => {
+                if file.seek(SeekFrom::Start(0)).is_ok() {
+                    let buffer_size = 8192;
+                    let zeros = vec![0u8; buffer_size];
+                    let mut written = 0;
+                    while written < file_size {
+                        let to_write = (file_size - written).min(buffer_size);
+                        match file.write_all(&zeros[..to_write]) {
+                            Ok(_) => written += to_write,
+                            Err(_) => {
+                                eprintln!("Failed to securely overwrite wallet file");
+                                break;
+                            }
+                        }
+                    }
+                    let _ = file.sync_all();
                 }
-                written += to_write;
+            }
+            Err(_) => {
+                eprintln!("Could not open wallet file for secure deletion");
             }
         }
     }
@@ -483,7 +476,7 @@ fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
     if metadata_file.exists() {
         fs::remove_file(metadata_file)?;
     }
-    println!("Wallet deleted successfully.");
+    println!("\nWallet deleted successfully.");
     println!("Make sure you have your mnemonic phrase backed up.\n");
     Ok(())
 }

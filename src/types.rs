@@ -1,5 +1,5 @@
-use bip39::Mnemonic;
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroizing};
 
 #[derive(Serialize, Deserialize)]
 pub struct EncryptedWallet {
@@ -30,27 +30,41 @@ pub struct Addresses {
     pub solana: String,
 }
 
-pub struct SecureMnemonic {
-    pub mnemonic: Mnemonic,
+pub struct SecureSeed {
+    seed: Zeroizing<Vec<u8>>,
 }
 
-impl Drop for SecureMnemonic {
-    fn drop(&mut self) {
-        // mnemonic zeroization handled internally by bip39
+impl SecureSeed {
+    pub fn new(seed: Vec<u8>) -> Self {
+        Self {
+            seed: Zeroizing::new(seed),
+        }
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.seed
+    }
+}
+
+pub struct SecureMnemonic {
+    phrase: Zeroizing<String>,
 }
 
 impl SecureMnemonic {
-    pub fn new(mnemonic: Mnemonic) -> Self {
-        Self { mnemonic }
+    pub fn from_phrase(phrase: String) -> Self {
+        Self {
+            phrase: Zeroizing::new(phrase),
+        }
     }
 
-    pub fn phrase(&self) -> String {
-        self.mnemonic.phrase().to_string()
+    pub fn phrase(&self) -> &str {
+        &self.phrase
     }
 
-    pub fn to_seed(&self, password: &str) -> Vec<u8> {
-        use bip39::Seed;
-        Seed::new(&self.mnemonic, password).as_bytes().to_vec()
+    pub fn to_seed(&self, password: &str) -> SecureSeed {
+        use bip39::{Mnemonic, Language, Seed};
+        let mnemonic = Mnemonic::from_phrase(&self.phrase, Language::English).expect("Invalid mnemonic in SecureMnemonic");
+        let seed = Seed::new(&mnemonic, password);
+        SecureSeed::new(seed.as_bytes().to_vec())
     }
 }

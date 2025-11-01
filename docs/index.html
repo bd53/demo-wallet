@@ -1,1 +1,113 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `demo_wallet` crate."><title>demo_wallet - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="demo_wallet" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0 (f8297e351 2025-10-28)" data-channel="1.91.0" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate demo_wallet</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../demo_wallet/index.html">demo_<wbr>wallet</a><span class="version">0.32.5</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>demo_<wbr>wallet</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/demo_wallet/main.rs.html#1-510">Source</a> </span></div><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="commands/index.html" title="mod demo_wallet::commands">commands</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="mod" href="convert/index.html" title="mod demo_wallet::convert">convert</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="mod" href="types/index.html" title="mod demo_wallet::types">types</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Cli.html" title="struct demo_wallet::Cli">Cli</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.ACCOUNT_MAX.html" title="constant demo_wallet::ACCOUNT_MAX">ACCOUNT_<wbr>MAX</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.METADATA_FILE.html" title="constant demo_wallet::METADATA_FILE">METADATA_<wbr>FILE</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.PASSWORD_LENGTH.html" title="constant demo_wallet::PASSWORD_LENGTH">PASSWORD_<wbr>LENGTH</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.SCRYPT_LOG_N.html" title="constant demo_wallet::SCRYPT_LOG_N">SCRYPT_<wbr>LOG_<wbr>N</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.SCRYPT_P.html" title="constant demo_wallet::SCRYPT_P">SCRYPT_<wbr>P</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.SCRYPT_R.html" title="constant demo_wallet::SCRYPT_R">SCRYPT_<wbr>R</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.WALLET_DIR.html" title="constant demo_wallet::WALLET_DIR">WALLET_<wbr>DIR</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="constant" href="constant.WALLET_FILE.html" title="constant demo_wallet::WALLET_FILE">WALLET_<wbr>FILE</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.change_password.html" title="fn demo_wallet::change_password">change_<wbr>password</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.check_wallet_exists.html" title="fn demo_wallet::check_wallet_exists">check_<wbr>wallet_<wbr>exists</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.check_wallet_not_found.html" title="fn demo_wallet::check_wallet_not_found">check_<wbr>wallet_<wbr>not_<wbr>found</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.decrypt_mnemonic.html" title="fn demo_wallet::decrypt_mnemonic">decrypt_<wbr>mnemonic</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.delete_wallet.html" title="fn demo_wallet::delete_wallet">delete_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.derive_all_addresses.html" title="fn demo_wallet::derive_all_addresses">derive_<wbr>all_<wbr>addresses</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.derive_bitcoin_addresses.html" title="fn demo_wallet::derive_bitcoin_addresses">derive_<wbr>bitcoin_<wbr>addresses</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.derive_ethereum_address.html" title="fn demo_wallet::derive_ethereum_address">derive_<wbr>ethereum_<wbr>address</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.derive_multiple_accounts.html" title="fn demo_wallet::derive_multiple_accounts">derive_<wbr>multiple_<wbr>accounts</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.derive_solana_address.html" title="fn demo_wallet::derive_solana_address">derive_<wbr>solana_<wbr>address</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.display_addresses.html" title="fn demo_wallet::display_addresses">display_<wbr>addresses</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.encrypt_mnemonic.html" title="fn demo_wallet::encrypt_mnemonic">encrypt_<wbr>mnemonic</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.export_mnemonic.html" title="fn demo_wallet::export_mnemonic">export_<wbr>mnemonic</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.export_private_key.html" title="fn demo_wallet::export_private_key">export_<wbr>private_<wbr>key</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.generate_qr_code.html" title="fn demo_wallet::generate_qr_code">generate_<wbr>qr_<wbr>code</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.generate_wallet.html" title="fn demo_wallet::generate_wallet">generate_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.get_metadata_file.html" title="fn demo_wallet::get_metadata_file">get_<wbr>metadata_<wbr>file</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.get_wallet_dir.html" title="fn demo_wallet::get_wallet_dir">get_<wbr>wallet_<wbr>dir</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.get_wallet_file.html" title="fn demo_wallet::get_wallet_file">get_<wbr>wallet_<wbr>file</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.load_metadata.html" title="fn demo_wallet::load_metadata">load_<wbr>metadata</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.main.html" title="fn demo_wallet::main">main</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.restore_wallet.html" title="fn demo_wallet::restore_wallet">restore_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.save_metadata.html" title="fn demo_wallet::save_metadata">save_<wbr>metadata</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.show_wallet.html" title="fn demo_wallet::show_wallet">show_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.update_metadata.html" title="fn demo_wallet::update_metadata">update_<wbr>metadata</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.validate_account_index.html" title="fn demo_wallet::validate_account_index">validate_<wbr>account_<wbr>index</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.validate_password.html" title="fn demo_wallet::validate_password">validate_<wbr>password</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.verify_wallet.html" title="fn demo_wallet::verify_wallet">verify_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.wallet_exists.html" title="fn demo_wallet::wallet_exists">wallet_<wbr>exists</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl></section></div></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `demo_wallet` crate.">
+    <title>demo_wallet - Rust</title>
+    <script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="./static.files/${f}">`).join(""))</script>
+    <link rel="stylesheet" href="./static.files/normalize-9960930a.css">
+    <link rel="stylesheet" href="./static.files/rustdoc-e56847b5.css">
+    <meta name="rustdoc-vars" data-root-path="../" data-static-root-path="./static.files/" data-current-crate="demo_wallet" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0 (f8297e351 2025-10-28)" data-channel="1.91.0" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" >
+    <script src="./static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="./static.files/main-6dc2a7f3.js"></script>
+    <noscript>
+      <link rel="stylesheet" href="./static.files/noscript-263c88ec.css">
+    </noscript>
+    <link rel="alternate icon" type="image/png" href="./static.files/favicon-32x32-eab170b8.png">
+    <link rel="icon" type="image/svg+xml" href="./static.files/favicon-044be391.svg">
+  </head>
+  <body class="rustdoc mod crate">
+    <!--[if lte IE 11]>
+    <div class="warning">This old browser is unsupported and will most likely display funky things.</div>
+    <![endif]-->
+    <rustdoc-topbar>
+      <h2><a href="#">Crate demo_wallet</a></h2>
+    </rustdoc-topbar>
+    <nav class="sidebar">
+      <div class="sidebar-crate">
+        <h2><a>demo_<wbr>wallet</a><span class="version">0.32.5</span></h2>
+      </div>
+      <div class="sidebar-elems">
+        <ul class="block">
+          <li><a id="all-types" href="./all.html">All Items</a></li>
+        </ul>
+        <section id="rustdoc-toc">
+          <h3><a href="#modules">Crate Items</a></h3>
+          <ul class="block">
+            <li><a href="#modules" title="Modules">Modules</a></li>
+            <li><a href="#structs" title="Structs">Structs</a></li>
+            <li><a href="#constants" title="Constants">Constants</a></li>
+            <li><a href="#functions" title="Functions">Functions</a></li>
+          </ul>
+        </section>
+        <div id="rustdoc-modnav"></div>
+      </div>
+    </nav>
+    <div class="sidebar-resizer" title="Drag to resize sidebar"></div>
+    <main>
+      <div class="width-limiter">
+        <section id="main-content" class="content">
+          <div class="main-heading">
+            <h1>Crate <span>demo_<wbr>wallet</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1>
+            <rustdoc-toolbar></rustdoc-toolbar>
+            <span class="sub-heading"><a class="src" href="https://github.com/bd53/demo-wallet/blob/main/src/main.rs">Source</a> </span>
+          </div>
+          <h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2>
+          <dl class="item-table">
+            <dt><a class="mod" href="commands/index.html" title="mod demo_wallet::commands">commands</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="mod" href="convert/index.html" title="mod demo_wallet::convert">convert</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="mod" href="types/index.html" title="mod demo_wallet::types">types</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+          </dl>
+          <h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2>
+          <dl class="item-table">
+            <dt><a class="struct" href="struct.Cli.html" title="struct demo_wallet::Cli">Cli</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+          </dl>
+          <h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2>
+          <dl class="item-table">
+            <dt><a class="constant" href="constant.ACCOUNT_MAX.html" title="constant demo_wallet::ACCOUNT_MAX">ACCOUNT_<wbr>MAX</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.METADATA_FILE.html" title="constant demo_wallet::METADATA_FILE">METADATA_<wbr>FILE</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.PASSWORD_LENGTH.html" title="constant demo_wallet::PASSWORD_LENGTH">PASSWORD_<wbr>LENGTH</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.SCRYPT_LOG_N.html" title="constant demo_wallet::SCRYPT_LOG_N">SCRYPT_<wbr>LOG_<wbr>N</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.SCRYPT_P.html" title="constant demo_wallet::SCRYPT_P">SCRYPT_<wbr>P</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.SCRYPT_R.html" title="constant demo_wallet::SCRYPT_R">SCRYPT_<wbr>R</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.WALLET_DIR.html" title="constant demo_wallet::WALLET_DIR">WALLET_<wbr>DIR</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="constant" href="constant.WALLET_FILE.html" title="constant demo_wallet::WALLET_FILE">WALLET_<wbr>FILE</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+          </dl>
+          <h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2>
+          <dl class="item-table">
+            <dt><a class="fn" href="fn.change_password.html" title="fn demo_wallet::change_password">change_<wbr>password</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.check_wallet_exists.html" title="fn demo_wallet::check_wallet_exists">check_<wbr>wallet_<wbr>exists</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.check_wallet_not_found.html" title="fn demo_wallet::check_wallet_not_found">check_<wbr>wallet_<wbr>not_<wbr>found</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.decrypt_mnemonic.html" title="fn demo_wallet::decrypt_mnemonic">decrypt_<wbr>mnemonic</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.delete_wallet.html" title="fn demo_wallet::delete_wallet">delete_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.derive_all_addresses.html" title="fn demo_wallet::derive_all_addresses">derive_<wbr>all_<wbr>addresses</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.derive_bitcoin_addresses.html" title="fn demo_wallet::derive_bitcoin_addresses">derive_<wbr>bitcoin_<wbr>addresses</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.derive_ethereum_address.html" title="fn demo_wallet::derive_ethereum_address">derive_<wbr>ethereum_<wbr>address</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.derive_multiple_accounts.html" title="fn demo_wallet::derive_multiple_accounts">derive_<wbr>multiple_<wbr>accounts</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.derive_solana_address.html" title="fn demo_wallet::derive_solana_address">derive_<wbr>solana_<wbr>address</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.display_addresses.html" title="fn demo_wallet::display_addresses">display_<wbr>addresses</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.encrypt_mnemonic.html" title="fn demo_wallet::encrypt_mnemonic">encrypt_<wbr>mnemonic</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.export_mnemonic.html" title="fn demo_wallet::export_mnemonic">export_<wbr>mnemonic</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.export_private_key.html" title="fn demo_wallet::export_private_key">export_<wbr>private_<wbr>key</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.generate_qr_code.html" title="fn demo_wallet::generate_qr_code">generate_<wbr>qr_<wbr>code</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.generate_wallet.html" title="fn demo_wallet::generate_wallet">generate_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.get_metadata_file.html" title="fn demo_wallet::get_metadata_file">get_<wbr>metadata_<wbr>file</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.get_wallet_dir.html" title="fn demo_wallet::get_wallet_dir">get_<wbr>wallet_<wbr>dir</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.get_wallet_file.html" title="fn demo_wallet::get_wallet_file">get_<wbr>wallet_<wbr>file</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.load_metadata.html" title="fn demo_wallet::load_metadata">load_<wbr>metadata</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.main.html" title="fn demo_wallet::main">main</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.restore_wallet.html" title="fn demo_wallet::restore_wallet">restore_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.save_metadata.html" title="fn demo_wallet::save_metadata">save_<wbr>metadata</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.show_wallet.html" title="fn demo_wallet::show_wallet">show_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.update_metadata.html" title="fn demo_wallet::update_metadata">update_<wbr>metadata</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.validate_account_index.html" title="fn demo_wallet::validate_account_index">validate_<wbr>account_<wbr>index</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.validate_password.html" title="fn demo_wallet::validate_password">validate_<wbr>password</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.verify_wallet.html" title="fn demo_wallet::verify_wallet">verify_<wbr>wallet</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+            <dt><a class="fn" href="fn.wallet_exists.html" title="fn demo_wallet::wallet_exists">wallet_<wbr>exists</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt>
+          </dl>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

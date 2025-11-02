@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Addresses","BitcoinAddresses","EncryptedWallet","Metadata","SecureMnemonic","SecureSeed"]};

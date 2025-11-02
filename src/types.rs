@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use zeroize::{Zeroizing};
+use zeroize::Zeroizing;
 
 #[derive(Serialize, Deserialize)]
 pub struct EncryptedWallet {
@@ -62,7 +62,7 @@ impl SecureMnemonic {
     }
 
     pub fn to_seed(&self, password: &str) -> SecureSeed {
-        use bip39::{Mnemonic, Language, Seed};
+        use bip39::{ Language, Mnemonic, Seed };
         let mnemonic = Mnemonic::from_phrase(&self.phrase, Language::English).expect("Invalid mnemonic in SecureMnemonic");
         let seed = Seed::new(&mnemonic, password);
         SecureSeed::new(seed.as_bytes().to_vec())

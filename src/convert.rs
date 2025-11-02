@@ -1,4 +1,4 @@
-use bitcoin::{Network, NetworkKind, PrivateKey, PublicKey, Address};
+use bitcoin::{Address, Network, NetworkKind, PrivateKey, PublicKey};
 
 pub fn run_convert(hex_key: &str, testnet: bool, uncompressed: bool) -> Result<(), Box<dyn std::error::Error>> {
     let key_bytes = hex::decode(hex_key.trim_start_matches("0x")).map_err(|_| "Invalid hex key format")?;

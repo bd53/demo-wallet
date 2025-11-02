@@ -1,10 +1,10 @@
 use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm};
 use bip39::{Language, Mnemonic, MnemonicType};
-use clap::{Parser};
-use qrcode::{QrCode, render::unicode};
-use scrypt::{password_hash::{SaltString, rand_core::{OsRng, RngCore}}, Params};
+use clap::Parser;
+use qrcode::{render::unicode, QrCode};
+use scrypt::{password_hash::{rand_core::{OsRng, RngCore}, SaltString}, Params};
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
-use std::{fs::{self, OpenOptions}, io::{Write, Seek, SeekFrom}, path::PathBuf};
+use std::{fs::{self, OpenOptions}, io::{Seek, SeekFrom, Write}, path::PathBuf};
 use tiny_keccak::{Hasher, Keccak};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -137,10 +137,16 @@ fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<SecureMn
 }
 
 fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses, Box<dyn std::error::Error>> {
-    use bitcoin::{ Address, Network, NetworkKind, PublicKey, PrivateKey, CompressedPublicKey, bip32::{DerivationPath, Xpriv, ChildNumber}, secp256k1::Secp256k1 };
+    use bitcoin::{ bip32::{ ChildNumber, DerivationPath, Xpriv }, secp256k1::Secp256k1, Address, CompressedPublicKey, Network, NetworkKind, PrivateKey, PublicKey };
     let secp = Secp256k1::new();
     let xprv = Xpriv::new_master(Network::Bitcoin, seed)?;
-    let path = DerivationPath::from(vec![ChildNumber::from_hardened_idx(44)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_normal_idx(0)?, ChildNumber::from_normal_idx(index)?]);
+    let path = DerivationPath::from(vec![
+        ChildNumber::from_hardened_idx(44)?,
+        ChildNumber::from_hardened_idx(0)?,
+        ChildNumber::from_hardened_idx(0)?,
+        ChildNumber::from_normal_idx(0)?,
+        ChildNumber::from_normal_idx(index)?,
+    ]);
     let derived = xprv.derive_priv(&secp, &path)?;
     let network_kind: NetworkKind = Network::Bitcoin.into();
     let private_key = PrivateKey::new(derived.private_key, network_kind);
@@ -153,8 +159,8 @@ fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses,
 }
 
 fn derive_ethereum_address(seed: &[u8], index: u32) -> Result<String, Box<dyn std::error::Error>> {
+    use bitcoin::secp256k1::{ PublicKey, Secp256k1, SecretKey };
     use tiny_hderive::bip32::ExtendedPrivKey;
-    use bitcoin::secp256k1::{Secp256k1, SecretKey, PublicKey};
     let path = format!("m/44'/60'/0'/0/{}", index);
     let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
     let secret = SecretKey::from_slice(&ext.secret())?;
@@ -357,23 +363,29 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
     let secure_seed = secure_mnemonic.to_seed("");
     let privkey = match chain {
         "bitcoin" => {
-            use bitcoin::{ Network, bip32::{DerivationPath, Xpriv, ChildNumber}, secp256k1::Secp256k1 };
+            use bitcoin::{ bip32::{ ChildNumber, DerivationPath, Xpriv }, secp256k1::Secp256k1, Network };
             let secp = Secp256k1::new();
             let xprv = Xpriv::new_master(Network::Bitcoin, secure_seed.as_bytes())?;
-            let path = DerivationPath::from(vec![ChildNumber::from_hardened_idx(44)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_hardened_idx(0)?, ChildNumber::from_normal_idx(0)?, ChildNumber::from_normal_idx(index)?]);
+            let path = DerivationPath::from(vec![
+                ChildNumber::from_hardened_idx(44)?,
+                ChildNumber::from_hardened_idx(0)?,
+                ChildNumber::from_hardened_idx(0)?,
+                ChildNumber::from_normal_idx(0)?,
+                ChildNumber::from_normal_idx(index)?,
+            ]);
             let derived = xprv.derive_priv(&secp, &path)?;
             Zeroizing::new(hex::encode(derived.private_key.secret_bytes()))
-        },
+        }
         "ethereum" => {
             use tiny_hderive::bip32::ExtendedPrivKey;
             let path = format!("m/44'/60'/0'/0/{}", index);
             let ext = ExtendedPrivKey::derive(secure_seed.as_bytes(), path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
             Zeroizing::new(format!("0x{}", hex::encode(ext.secret())))
-        },
+        }
         "solana" => {
             let (_address, secret_key) = derive_solana_address(secure_seed.as_bytes(), index)?;
             Zeroizing::new(bs58::encode(&*secret_key).into_string())
-        },
+        }
         _ => {
             return Err(format!("Unsupported chain: {}. Use: bitcoin, ethereum, or solana", chain).into());
         }

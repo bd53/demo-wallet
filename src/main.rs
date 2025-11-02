@@ -1,8 +1,8 @@
-use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm};
+use aes_gcm::{Aes256Gcm, aead::{Aead, KeyInit}};
 use bip39::{Language, Mnemonic, MnemonicType};
 use clap::Parser;
-use qrcode::{render::unicode, QrCode};
-use scrypt::{password_hash::{rand_core::{OsRng, RngCore}, SaltString}, Params};
+use qrcode::{QrCode, render::unicode};
+use scrypt::{Params, password_hash::{SaltString, rand_core::{OsRng, RngCore}}};
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
 use std::{fs::{self, OpenOptions}, io::{Seek, SeekFrom, Write}, path::PathBuf};
 use tiny_keccak::{Hasher, Keccak};
@@ -23,6 +23,7 @@ const ACCOUNT_MAX: u32 = 20;
 const SCRYPT_LOG_N: u8 = 14;
 const SCRYPT_R: u32 = 8;
 const SCRYPT_P: u32 = 1;
+const CIPHERTEXT_MIN: usize = 17; // min 1 byte plaintext + 16 byte tag
 
 #[derive(Parser)]
 #[command(name = env!("CARGO_PKG_NAME"), about = env!("CARGO_PKG_DESCRIPTION"), author = env!("CARGO_PKG_AUTHORS"), version = env!("CARGO_PKG_VERSION"))]
@@ -36,11 +37,7 @@ fn get_wallet_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let wallet_dir = home.join(WALLET_DIR);
     if !wallet_dir.exists() {
         fs::create_dir_all(&wallet_dir)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&wallet_dir, fs::Permissions::from_mode(0o700))?;
-        }
+        set_secure_permissions(&wallet_dir)?;
     }
     Ok(wallet_dir)
 }
@@ -51,6 +48,32 @@ fn get_wallet_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 
 fn get_metadata_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(get_wallet_dir()?.join(METADATA_FILE))
+}
+
+fn set_secure_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
+    }
+    #[cfg(windows)]
+    {
+        eprintln!("File permissions not set on Windows. Ensure this directory is protected.");
+    }
+    Ok(())
+}
+
+fn set_secure_file_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    }
+    #[cfg(windows)]
+    {
+        eprintln!("File permissions not set on Windows. Ensure this file is protected.");
+    }
+    Ok(())
 }
 
 fn validate_password(password: &str) -> bool {
@@ -67,38 +90,35 @@ fn validate_password(password: &str) -> bool {
     let has_number = password.chars().any(|c| c.is_numeric());
     let has_symbol = password.chars().any(|c| "!@#$%^&*(),.?\":{}|<>_-\\[]/~`+=;".contains(c));
     if !(has_upper && has_lower && has_number && has_symbol) {
-        println!("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special symbol.");
+        println!("\nPassword must contain at least one uppercase letter, one lowercase letter, one number, and one special symbol.");
         return false;
     }
     true
 }
 
-fn validate_account_index(index: u32) -> bool {
+fn validate_account_index(index: u32) -> Result<(), Box<dyn std::error::Error>> {
     if index >= ACCOUNT_MAX {
-        println!("Account index must be between 0 and {}.", ACCOUNT_MAX - 1);
-        return false;
+        return Err(format!("Account index must be between 0 and {}.", ACCOUNT_MAX - 1).into());
     }
-    true
+    Ok(())
 }
 
 fn wallet_exists() -> Result<bool, Box<dyn std::error::Error>> {
     Ok(get_wallet_file()?.exists())
 }
 
-fn check_wallet_exists() -> Result<bool, Box<dyn std::error::Error>> {
+fn check_wallet_exists() -> Result<(), Box<dyn std::error::Error>> {
     if !wallet_exists()? {
-        println!("No wallet found. Run `generate` first.");
-        return Ok(false);
+        return Err("No wallet found. Run `generate` first.".into());
     }
-    Ok(true)
+    Ok(())
 }
 
-fn check_wallet_not_found() -> Result<bool, Box<dyn std::error::Error>> {
+fn check_wallet_not_found() -> Result<(), Box<dyn std::error::Error>> {
     if wallet_exists()? {
-        println!("Wallet already exists. Use `delete` first if you want to create a new one.");
-        return Ok(false);
+        return Err("Wallet already exists. Use `delete` first if you want to create a new one.".into());
     }
-    Ok(true)
+    Ok(())
 }
 
 fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWallet, Box<dyn std::error::Error>> {
@@ -111,6 +131,9 @@ fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWallet, B
     OsRng.fill_bytes(&mut iv);
     let nonce = &iv.into();
     let ciphertext = cipher.encrypt(nonce, mnemonic.as_bytes()).map_err(|e| format!("Encryption failed: {:?}", e))?;
+    if ciphertext.len() < CIPHERTEXT_MIN {
+        return Err("Encryption produced invalid ciphertext".into());
+    }
     let tag_start = ciphertext.len() - 16;
     let content = hex::encode(&ciphertext[..tag_start]);
     let tag = hex::encode(&ciphertext[tag_start..]);
@@ -127,9 +150,15 @@ fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<SecureMn
     let nonce = &iv_array.into();
     let content = hex::decode(&wallet.content)?;
     let tag = hex::decode(&wallet.tag)?;
+    if tag.len() != 16 {
+        return Err("Invalid authentication tag length".into());
+    }
     let mut ciphertext = content;
     ciphertext.extend_from_slice(&tag);
-    let plaintext = Zeroizing::new(cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|_| "Decryption failed. Invalid password or corrupted wallet file.")?);
+    if ciphertext.len() < CIPHERTEXT_MIN {
+        return Err("Invalid ciphertext length".into());
+    }
+    let plaintext = Zeroizing::new(cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|_| "Decryption failed. Invalid password.")?);
     let mnemonic_str = std::str::from_utf8(&plaintext)?;
     let _ = Mnemonic::from_phrase(mnemonic_str, Language::English).map_err(|_| "Invalid mnemonic in wallet file")?;
     let secure = SecureMnemonic::from_phrase(mnemonic_str.to_string());
@@ -137,7 +166,8 @@ fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<SecureMn
 }
 
 fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses, Box<dyn std::error::Error>> {
-    use bitcoin::{ bip32::{ ChildNumber, DerivationPath, Xpriv }, secp256k1::Secp256k1, Address, CompressedPublicKey, Network, NetworkKind, PrivateKey, PublicKey };
+    validate_account_index(index)?;
+    use bitcoin::{Address, CompressedPublicKey, Network, NetworkKind, PrivateKey, PublicKey, bip32::{ChildNumber, DerivationPath, Xpriv}, secp256k1::Secp256k1};
     let secp = Secp256k1::new();
     let xprv = Xpriv::new_master(Network::Bitcoin, seed)?;
     let path = DerivationPath::from(vec![
@@ -159,11 +189,16 @@ fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses,
 }
 
 fn derive_ethereum_address(seed: &[u8], index: u32) -> Result<String, Box<dyn std::error::Error>> {
-    use bitcoin::secp256k1::{ PublicKey, Secp256k1, SecretKey };
+    validate_account_index(index)?;
+    use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
     use tiny_hderive::bip32::ExtendedPrivKey;
     let path = format!("m/44'/60'/0'/0/{}", index);
     let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-    let secret = SecretKey::from_slice(&ext.secret())?;
+    let secret_bytes = ext.secret();
+    if secret_bytes.len() < 32 {
+        return Err("Invalid secret key length from HD derivation".into());
+    }
+    let secret = SecretKey::from_slice(&secret_bytes[..32])?;
     let secp = Secp256k1::new();
     let public = PublicKey::from_secret_key(&secp, &secret);
     let public_bytes = public.serialize_uncompressed();
@@ -176,16 +211,19 @@ fn derive_ethereum_address(seed: &[u8], index: u32) -> Result<String, Box<dyn st
 }
 
 fn derive_solana_address(seed: &[u8], index: u32) -> Result<(String, Zeroizing<Vec<u8>>), Box<dyn std::error::Error>> {
+    validate_account_index(index)?;
     use tiny_hderive::bip32::ExtendedPrivKey;
     let path = format!("m/44'/501'/{}'", index);
     let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
     let secret_bytes = ext.secret();
-    let mut seed_bytes = [0u8; 32];
+    if secret_bytes.len() < 32 {
+        return Err("Invalid secret key length from HD derivation".into());
+    }
+    let mut seed_bytes = Zeroizing::new([0u8; 32]);
     seed_bytes.copy_from_slice(&secret_bytes[..32]);
-    let keypair = SolanaKeypair::from_seed(&seed_bytes)?;
+    let keypair = SolanaKeypair::from_seed(&*seed_bytes)?;
     let address = keypair.pubkey().to_string();
     let secret_key = Zeroizing::new(keypair.to_bytes().to_vec());
-    seed_bytes.zeroize();
     Ok((address, secret_key))
 }
 
@@ -218,11 +256,7 @@ fn save_metadata(metadata: &Metadata) -> Result<(), Box<dyn std::error::Error>> 
     let json = serde_json::to_string_pretty(metadata)?;
     let metadata_file = get_metadata_file()?;
     fs::write(&metadata_file, json)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&metadata_file, fs::Permissions::from_mode(0o600))?;
-    }
+    set_secure_file_permissions(&metadata_file)?;
     Ok(())
 }
 
@@ -237,40 +271,35 @@ fn load_metadata() -> Result<Option<Metadata>, Box<dyn std::error::Error>> {
 }
 
 fn update_metadata(address_count: Option<u32>) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(mut metadata) = load_metadata()? {
-        metadata.last_accessed = Some(chrono::Utc::now().to_rfc3339());
-        if let Some(count) = address_count {
-            metadata.address_count = metadata.address_count.max(count);
-        }
-        save_metadata(&metadata)?;
+    let mut metadata = load_metadata()?.unwrap_or_else(|| {
+        eprintln!("Metadata file missing, initializing new metadata.");
+        Metadata { version: "2.0".to_string(), created_at: chrono::Utc::now().to_rfc3339(), address_count: 1, last_accessed: None }
+    });
+    metadata.last_accessed = Some(chrono::Utc::now().to_rfc3339());
+    if let Some(count) = address_count {
+        metadata.address_count = metadata.address_count.max(count);
     }
+    save_metadata(&metadata)?;
     Ok(())
 }
 
 fn generate_wallet(password: &str, words: u32) -> Result<(), Box<dyn std::error::Error>> {
-    if !validate_password(password) || !check_wallet_not_found()? {
-        return Ok(());
+    if !validate_password(password) {
+        return Err("Password validation failed".into());
     }
+    check_wallet_not_found()?;
     let word_count = match words {
         12 => MnemonicType::Words12,
         24 => MnemonicType::Words24,
-        _ => {
-            println!("Word count must be 12 or 24");
-            return Ok(());
-        }
+        _ => return Err("Word count must be 12 or 24".into()),
     };
     let mnemonic = Mnemonic::new(word_count, Language::English);
-    let phrase = mnemonic.phrase().to_string();
-    let secure_mnemonic = SecureMnemonic::from_phrase(phrase.clone());
+    let phrase = Zeroizing::new(mnemonic.phrase().to_string());
+    drop(mnemonic);
+    let secure_mnemonic = SecureMnemonic::from_phrase(phrase.to_string());
     let encrypted = encrypt_mnemonic(&phrase, password)?;
     let json = serde_json::to_string_pretty(&encrypted)?;
     let wallet_file = get_wallet_file()?;
-    fs::write(&wallet_file, json)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&wallet_file, fs::Permissions::from_mode(0o600))?;
-    }
     let metadata = Metadata { version: "2.0".to_string(), created_at: chrono::Utc::now().to_rfc3339(), address_count: 1, last_accessed: None };
     save_metadata(&metadata)?;
     let secure_seed = secure_mnemonic.to_seed("");
@@ -281,13 +310,15 @@ fn generate_wallet(password: &str, words: u32) -> Result<(), Box<dyn std::error:
     display_addresses(&addresses, 0);
     println!("Wallet stored in: {}", wallet_file.display());
     println!("Metadata stored in: {}\n", get_metadata_file()?.display());
+    fs::write(&wallet_file, json)?;
+    set_secure_file_permissions(&wallet_file)?;
+    update_metadata(None)?;
     Ok(())
 }
 
 fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? || !validate_account_index(account) {
-        return Ok(());
-    }
+    check_wallet_exists()?;
+    validate_account_index(account)?;
     let wallet_file = get_wallet_file()?;
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
@@ -305,12 +336,9 @@ fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn std
 }
 
 fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? {
-        return Ok(());
-    }
+    check_wallet_exists()?;
     if count < 1 || count > ACCOUNT_MAX {
-        println!("You can only derive between 1 and {} accounts.", ACCOUNT_MAX);
-        return Ok(());
+        return Err(format!("You can only derive between 1 and {} accounts.", ACCOUNT_MAX).into());
     }
     let wallet_file = get_wallet_file()?;
     let contents = fs::read_to_string(wallet_file)?;
@@ -332,9 +360,7 @@ fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dyn st
 }
 
 fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? {
-        return Ok(());
-    }
+    check_wallet_exists()?;
     let wallet_file = get_wallet_file()?;
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
@@ -345,7 +371,8 @@ fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::erro
         return Ok(());
     }
     println!("\nDo NOT share.\n");
-    println!("Your mnemonic phrase:\n{}\n", secure_mnemonic.phrase());
+    print!("Your mnemonic phrase:\n");
+    println!("{}\n", secure_mnemonic.phrase());
     println!("Write this down on paper and store in a secure location.");
     println!("Never store it digitally, take screenshots, or share it with anyone.\n");
     update_metadata(None)?;
@@ -353,9 +380,8 @@ fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::erro
 }
 
 fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? || !validate_account_index(index) {
-        return Ok(());
-    }
+    check_wallet_exists()?;
+    validate_account_index(index)?;
     let wallet_file = get_wallet_file()?;
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
@@ -363,7 +389,7 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
     let secure_seed = secure_mnemonic.to_seed("");
     let privkey = match chain {
         "bitcoin" => {
-            use bitcoin::{ bip32::{ ChildNumber, DerivationPath, Xpriv }, secp256k1::Secp256k1, Network };
+            use bitcoin::{Network, bip32::{ChildNumber, DerivationPath, Xpriv}, secp256k1::Secp256k1};
             let secp = Secp256k1::new();
             let xprv = Xpriv::new_master(Network::Bitcoin, secure_seed.as_bytes())?;
             let path = DerivationPath::from(vec![
@@ -380,7 +406,11 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
             use tiny_hderive::bip32::ExtendedPrivKey;
             let path = format!("m/44'/60'/0'/0/{}", index);
             let ext = ExtendedPrivKey::derive(secure_seed.as_bytes(), path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-            Zeroizing::new(format!("0x{}", hex::encode(ext.secret())))
+            let secret_bytes = ext.secret();
+            if secret_bytes.len() < 32 {
+                return Err("Invalid secret key length".into());
+            }
+            Zeroizing::new(format!("0x{}", hex::encode(&secret_bytes[..32])))
         }
         "solana" => {
             let (_address, secret_key) = derive_solana_address(secure_seed.as_bytes(), index)?;
@@ -391,7 +421,8 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
         }
     };
     println!("\nDo NOT share.\n");
-    println!("{} Private Key (Account {}):\n{}\n", chain.to_uppercase(), index, &*privkey);
+    print!("{} Private Key (Account {}):\n", chain.to_uppercase(), index);
+    println!("{}\n", &*privkey);
     println!("Only import this into trusted wallets on secure devices.\n");
     if qr {
         generate_qr_code(&privkey, "Private Key")?;
@@ -401,21 +432,22 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
 }
 
 fn restore_wallet(mnemonic: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if !validate_password(password) || !check_wallet_not_found()? {
-        return Ok(());
+    if !validate_password(password) {
+        return Err("Password validation failed".into());
     }
-    let trimmed = mnemonic.trim();
-    let _parsed_mnemonic = Mnemonic::from_phrase(trimmed, Language::English).map_err(|_| "Invalid mnemonic phrase.")?;
+    check_wallet_not_found()?;
+    let mut trimmed = Zeroizing::new(mnemonic.trim().to_string());
+    {
+        let parsed = Mnemonic::from_phrase(&trimmed, Language::English).map_err(|_| "Invalid mnemonic phrase.")?;
+        drop(parsed);
+    }
     let secure_mnemonic = SecureMnemonic::from_phrase(trimmed.to_string());
-    let encrypted = encrypt_mnemonic(secure_mnemonic.phrase(), password)?;
+    let encrypted = encrypt_mnemonic(&trimmed, password)?;
+    trimmed.zeroize();
     let json = serde_json::to_string_pretty(&encrypted)?;
     let wallet_file = get_wallet_file()?;
     fs::write(&wallet_file, json)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&wallet_file, fs::Permissions::from_mode(0o600))?;
-    }
+    set_secure_file_permissions(&wallet_file)?;
     let metadata = Metadata { version: "2.0".to_string(), created_at: chrono::Utc::now().to_rfc3339(), address_count: 1, last_accessed: None };
     save_metadata(&metadata)?;
     let secure_seed = secure_mnemonic.to_seed("");
@@ -427,9 +459,7 @@ fn restore_wallet(mnemonic: &str, password: &str) -> Result<(), Box<dyn std::err
 }
 
 fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? {
-        return Ok(());
-    }
+    check_wallet_exists()?;
     let wallet_file = get_wallet_file()?;
     let contents = fs::read_to_string(wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
@@ -439,18 +469,37 @@ fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
         println!("\nWallet Info:");
         println!("   Version: {}", metadata.version);
         println!("   Created: {}", metadata.created_at);
-        println!("   Accounts: {}\n", metadata.address_count);
+        println!("   Accounts: {}", metadata.address_count);
         if let Some(last_accessed) = &metadata.last_accessed {
-            println!("   Last Accessed: {}\n", last_accessed);
+            println!("   Last Accessed: {}", last_accessed);
         }
+        println!();
     }
     Ok(())
 }
 
-fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? {
-        return Ok(());
+fn secure_overwrite_file(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let metadata = fs::metadata(path)?;
+    let file_size = metadata.len() as usize;
+    let mut file = OpenOptions::new().write(true).open(path)?;
+    file.seek(SeekFrom::Start(0))?;
+    let buffer_size = 8192;
+    let zeros = vec![0u8; buffer_size];
+    let mut remaining = file_size;
+    while remaining > 0 {
+        let to_write = remaining.min(buffer_size);
+        let written = file.write(&zeros[..to_write])?;
+        if written == 0 {
+            return Err("Failed to write during secure deletion".into());
+        }
+        remaining -= written;
     }
+    file.sync_all()?;
+    Ok(())
+}
+
+fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
+    check_wallet_exists()?;
     if !confirm {
         println!("\nThis will permanently delete your wallet file.");
         println!("Make absolutely sure you have your mnemonic phrase backed up.");
@@ -458,35 +507,16 @@ fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     let wallet_file = get_wallet_file()?;
-    if let Ok(metadata) = fs::metadata(&wallet_file) {
-        let file_size = metadata.len() as usize;
-        match OpenOptions::new().write(true).open(&wallet_file) {
-            Ok(mut file) => {
-                if file.seek(SeekFrom::Start(0)).is_ok() {
-                    let buffer_size = 8192;
-                    let zeros = vec![0u8; buffer_size];
-                    let mut written = 0;
-                    while written < file_size {
-                        let to_write = (file_size - written).min(buffer_size);
-                        match file.write_all(&zeros[..to_write]) {
-                            Ok(_) => written += to_write,
-                            Err(_) => {
-                                eprintln!("Failed to securely overwrite wallet file");
-                                break;
-                            }
-                        }
-                    }
-                    let _ = file.sync_all();
-                }
-            }
-            Err(_) => {
-                eprintln!("Could not open wallet file for secure deletion");
-            }
-        }
+    if let Err(e) = secure_overwrite_file(&wallet_file) {
+        eprintln!("Failed to securely overwrite wallet file: {}", e);
+        eprintln!("Proceeding with regular deletion...");
     }
     fs::remove_file(&wallet_file)?;
     let metadata_file = get_metadata_file()?;
     if metadata_file.exists() {
+        if let Err(e) = secure_overwrite_file(&metadata_file) {
+            eprintln!("Failed to securely overwrite metadata file: {}", e);
+        }
         fs::remove_file(metadata_file)?;
     }
     println!("\nWallet deleted successfully.");
@@ -495,28 +525,29 @@ fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn change_password(old_password: &str, new_password: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if !check_wallet_exists()? || !validate_password(new_password) {
-        return Ok(());
+    check_wallet_exists()?;
+    if !validate_password(new_password) {
+        return Err("New password validation failed".into());
     }
     let wallet_file = get_wallet_file()?;
     let contents = fs::read_to_string(&wallet_file)?;
     let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
     let secure_mnemonic = decrypt_mnemonic(&wallet, old_password)?;
-    let encrypted = encrypt_mnemonic(&secure_mnemonic.phrase(), new_password)?;
+    let phrase_copy = secure_mnemonic.phrase_zeroizing();
+    let encrypted = encrypt_mnemonic(&phrase_copy, new_password)?;
     let json = serde_json::to_string_pretty(&encrypted)?;
     fs::write(&wallet_file, json)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&wallet_file, fs::Permissions::from_mode(0o600))?;
-    }
-    println!("Password changed successfully.\n");
+    set_secure_file_permissions(&wallet_file)?;
     update_metadata(None)?;
+    println!("\nPassword changed successfully.\n");
     Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    commands::execute_command(cli.command)?;
+    if let Err(e) = commands::execute_command(cli.command) {
+        eprintln!("\nError: {}\n", e);
+        std::process::exit(1);
+    }
     Ok(())
 }

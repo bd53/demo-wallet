@@ -61,10 +61,17 @@ impl SecureMnemonic {
         &self.phrase
     }
 
+    pub fn phrase_zeroizing(&self) -> Zeroizing<String> {
+        Zeroizing::new(self.phrase.to_string())
+    }
+
     pub fn to_seed(&self, password: &str) -> SecureSeed {
-        use bip39::{ Language, Mnemonic, Seed };
+        use bip39::{Language, Mnemonic, Seed};
         let mnemonic = Mnemonic::from_phrase(&self.phrase, Language::English).expect("Invalid mnemonic in SecureMnemonic");
         let seed = Seed::new(&mnemonic, password);
-        SecureSeed::new(seed.as_bytes().to_vec())
+        let seed_vec = seed.as_bytes().to_vec();
+        drop(mnemonic);
+        drop(seed);
+        SecureSeed::new(seed_vec)
     }
 }

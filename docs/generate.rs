@@ -47,7 +47,7 @@ fn extract_visibility(vis: &Visibility) -> String {
     match vis {
         Visibility::Public(_) => "pub".to_string(),
         Visibility::Restricted(r) => { let path = r.path.to_token_stream().to_string(); format!("pub({})", path) }
-        Visibility::Inherited => "private".to_string(),
+        Visibility::Inherited => "pub(crate)".to_string(),
     }
 }
 

@@ -1,15 +1,14 @@
-use std::{fs, path::Path};
-use walkdir::WalkDir;
+use quote::ToTokens;
+use std::{fs, path::Path, process};
 use syn::{Attribute, Fields, FnArg, Generics, ImplItem, Item, ReturnType, TraitItem, Type, Visibility};
 use tera::{Context, Tera};
-use quote::ToTokens;
+use walkdir::WalkDir;
 
 #[derive(Debug, serde::Serialize)]
 struct DocItem {
     kind: String,
     name: String,
     signature: Option<String>,
-    docs: String,
     details: Option<Vec<DetailItem>>,
     visibility: String,
     generics: Option<String>,
@@ -22,7 +21,6 @@ struct DetailItem {
     name: String,
     description: String,
     ty: Option<String>,
-    docs: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -41,16 +39,16 @@ struct ProjectInfo {
     repository: &'static str,
 }
 
-fn extract_doc_comments(attrs: &[Attribute]) -> String {
-    attrs.iter().filter_map(|attr| { if attr.path().is_ident("doc") { Some(attr.to_token_stream().to_string().trim_start_matches("doc = ").trim_matches('"').replace("\\n", "\n").trim().to_string() ) } else { None }
-}).collect::<Vec<_>>().join("\n")}
-
 fn extract_attributes(attrs: &[Attribute]) -> Vec<String> {
     attrs.iter().filter(|attr| !attr.path().is_ident("doc")).map(|attr| attr.to_token_stream().to_string()).collect()
 }
 
 fn extract_visibility(vis: &Visibility) -> String {
-    match vis { Visibility::Public(_) => "pub".to_string(), Visibility::Restricted(r) => format!("pub({})", r.to_token_stream()), Visibility::Inherited => "private".to_string() }
+    match vis {
+        Visibility::Public(_) => "pub".to_string(),
+        Visibility::Restricted(r) => { let path = r.path.to_token_stream().to_string(); format!("pub({})", path) }
+        Visibility::Inherited => "private".to_string(),
+    }
 }
 
 fn extract_generics(generics: &Generics) -> Option<String> {
@@ -62,15 +60,21 @@ fn extract_generics(generics: &Generics) -> Option<String> {
 }
 
 fn extract_type(ty: &Type) -> String {
-    ty.to_token_stream().to_string().replace(" ,", ",")
+    ty.to_token_stream().to_string()
 }
 
 fn format_function_params(inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>) -> String {
-    inputs.iter().filter_map(|arg| match arg { FnArg::Typed(pat_type) => Some(format!("{}: {}", pat_type.pat.to_token_stream(), extract_type(&pat_type.ty))), FnArg::Receiver(r) => Some(r.to_token_stream().to_string()) }).collect::<Vec<_>>().join(", ")
+    inputs.iter().filter_map(|arg| match arg {
+        FnArg::Typed(pat_type) => Some(format!("{}: {}", pat_type.pat.to_token_stream(), extract_type(&pat_type.ty))),
+        FnArg::Receiver(r) => Some(r.to_token_stream().to_string()) 
+    }).collect::<Vec<_>>().join(", ")
 }
 
 fn format_return_type(output: &ReturnType) -> String {
-    match output { ReturnType::Default => String::new(), ReturnType::Type(_, ty) => format!(" -> {}", extract_type(ty)) }
+    match output {
+        ReturnType::Default => String::new(),
+        ReturnType::Type(_, ty) => format!(" -> {}", extract_type(ty)),
+    }
 }
 
 fn format_function_signature(vis: &str, func: &syn::ItemFn, name: &str, generics_str: &str) -> String {
@@ -83,102 +87,103 @@ fn format_function_signature(vis: &str, func: &syn::ItemFn, name: &str, generics
 }
 
 fn extract_struct_fields(fields: &Fields) -> Vec<DetailItem> {
-    match fields { Fields::Named(fields) => fields.named.iter().map(|f| DetailItem { name: f.ident.as_ref().unwrap().to_string(), description: extract_visibility(&f.vis), ty: Some(extract_type(&f.ty)), docs: Some(extract_doc_comments(&f.attrs)) }).collect(), Fields::Unnamed(fields) => fields.unnamed.iter().enumerate().map(|(i, f)| DetailItem { name: i.to_string(), description: extract_visibility(&f.vis), ty: Some(extract_type(&f.ty)), docs: Some(extract_doc_comments(&f.attrs)) }).collect(), Fields::Unit => vec![] }
+    match fields {
+        Fields::Named(fields) => fields.named.iter().map(|f| DetailItem { name: f.ident.as_ref().unwrap().to_string(), description: extract_visibility(&f.vis), ty: Some(extract_type(&f.ty)) }).collect(),
+        Fields::Unnamed(fields) => fields.unnamed.iter().enumerate().map(|(i, f)| DetailItem { name: i.to_string(), description: extract_visibility(&f.vis), ty: Some(extract_type(&f.ty)) }).collect(),
+        Fields::Unit => vec![],
+    }
 }
 
-fn extract_enum_variants(variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>) -> Vec<DetailItem> {
-    variants.iter().map(|v| { let description = match &v.fields { Fields::Unit => "Unit variant", Fields::Named(_) => "Struct variant", Fields::Unnamed(_) => "Tuple variant" }; DetailItem { name: v.ident.to_string(), description: description.to_string(), ty: Some(v.fields.to_token_stream().to_string()), docs: Some(extract_doc_comments(&v.attrs)) }}).collect()
+fn extract_enum_variants(variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,) -> Vec<DetailItem> {
+    variants.iter().map(|v| {
+        let description = match &v.fields {
+            Fields::Unit => "Unit variant",
+            Fields::Named(_) => "Struct variant",
+            Fields::Unnamed(_) => "Tuple variant",
+        };
+        DetailItem { name: v.ident.to_string(), description: description.to_string(), ty: Some(v.fields.to_token_stream().to_string()) }}).collect()
 }
 
 fn extract_trait_methods(items: &[TraitItem]) -> Vec<DetailItem> {
-    items.iter().filter_map(|item| match item { TraitItem::Fn(method) => Some(DetailItem { name: method.sig.ident.to_string(), description: method.sig.to_token_stream().to_string(), ty: None, docs: Some(extract_doc_comments(&method.attrs)) }), _ => None }).collect()
+    items.iter().filter_map(|item| match item { TraitItem::Fn(method) => Some(DetailItem { name: method.sig.ident.to_string(), description: method.sig.to_token_stream().to_string(), ty: None }), _ => None }).collect()
 }
 
 fn extract_impl_methods(items: &[ImplItem]) -> Vec<DetailItem> {
-    items.iter().filter_map(|item| match item { ImplItem::Fn(method) => Some(DetailItem { name: method.sig.ident.to_string(), description: extract_visibility(&method.vis), ty: Some(method.sig.to_token_stream().to_string()), docs: Some(extract_doc_comments(&method.attrs)) }), _ => None }).collect()
+    items.iter().filter_map(|item| match item { ImplItem::Fn(method) => Some(DetailItem { name: method.sig.ident.to_string(), description: extract_visibility(&method.vis), ty: Some(method.sig.to_token_stream().to_string()) }), _ => None }).collect()
 }
 
 fn parse_function(func: syn::ItemFn, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&func.attrs);
     let name = func.sig.ident.to_string();
     let vis = extract_visibility(&func.vis);
     let attributes = extract_attributes(&func.attrs);
     let generics = extract_generics(&func.sig.generics);
     let generics_str = generics.as_deref().unwrap_or("");
     let signature = format_function_signature(&vis, &func, &name, generics_str);
-    DocItem { kind: "Function".into(), name, signature: Some(signature), docs, details: None, visibility: vis, generics, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Function".into(), name, signature: Some(signature), details: None, visibility: vis, generics, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_struct(st: syn::ItemStruct, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&st.attrs);
     let vis = extract_visibility(&st.vis);
     let attributes = extract_attributes(&st.attrs);
     let fields_info = extract_struct_fields(&st.fields);
     let generics = extract_generics(&st.generics);
     let generics_str = generics.as_deref().unwrap_or("");
-    DocItem { kind: "Struct".into(), name: st.ident.to_string(), signature: Some(format!("{} struct {}{}", vis, st.ident, generics_str)), docs, details: if fields_info.is_empty() { None } else { Some(fields_info) }, visibility: vis, generics, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Struct".into(), name: st.ident.to_string(), signature: Some(format!("{} struct {}{}", vis, st.ident, generics_str)), details: if fields_info.is_empty() { None } else { Some(fields_info) }, visibility: vis, generics, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_enum(en: syn::ItemEnum, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&en.attrs);
     let vis = extract_visibility(&en.vis);
     let attributes = extract_attributes(&en.attrs);
     let variants = extract_enum_variants(&en.variants);
     let generics = extract_generics(&en.generics);
     let generics_str = generics.as_deref().unwrap_or("");
-    DocItem { kind: "Enum".into(), name: en.ident.to_string(), signature: Some(format!("{} enum {}{}", vis, en.ident, generics_str)), docs, details: Some(variants), visibility: vis, generics, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Enum".into(), name: en.ident.to_string(), signature: Some(format!("{} enum {}{}", vis, en.ident, generics_str)), details: Some(variants), visibility: vis, generics, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_module(m: syn::ItemMod, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&m.attrs);
     let vis = extract_visibility(&m.vis);
     let attributes = extract_attributes(&m.attrs);
-    DocItem { kind: "Module".into(), name: m.ident.to_string(), signature: Some(format!("{} mod {}", vis, m.ident)), docs, details: None, visibility: vis, generics: None, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Module".into(), name: m.ident.to_string(), signature: Some(format!("{} mod {}", vis, m.ident)), details: None, visibility: vis, generics: None, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_trait(tr: syn::ItemTrait, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&tr.attrs);
     let vis = extract_visibility(&tr.vis);
     let attributes = extract_attributes(&tr.attrs);
     let generics = extract_generics(&tr.generics);
     let generics_str = generics.as_deref().unwrap_or("");
     let methods = extract_trait_methods(&tr.items);
-    DocItem { kind: "Trait".into(), name: tr.ident.to_string(), signature: Some(format!("{} trait {}{}", vis, tr.ident, generics_str)), docs, details: if methods.is_empty() { None } else { Some(methods) }, visibility: vis, generics, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Trait".into(), name: tr.ident.to_string(), signature: Some(format!("{} trait {}{}", vis, tr.ident, generics_str)), details: if methods.is_empty() { None } else { Some(methods) }, visibility: vis, generics, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_impl(impl_block: syn::ItemImpl, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&impl_block.attrs);
     let type_name = impl_block.self_ty.to_token_stream().to_string();
     let trait_name = impl_block.trait_.as_ref().map(|(_, path, _)| path.to_token_stream().to_string());
     let methods = extract_impl_methods(&impl_block.items);
-    let name = trait_name.map(|t| format!("{} for {}", t, type_name)).unwrap_or(type_name);
-    DocItem { kind: "Implementation".into(), name: name.clone(), signature: Some(format!("impl {}", name)), docs, details: if methods.is_empty() { None } else { Some(methods) }, visibility: String::new(), generics: extract_generics(&impl_block.generics), attributes: extract_attributes(&impl_block.attrs), source_link: path_str.to_string() }
+    let name = if let Some(t) = trait_name { format!("{} for {}", t, type_name) } else { type_name };
+    DocItem { kind: "Implementation".into(), name: name.clone(), signature: Some(format!("impl {}", name)), details: if methods.is_empty() { None } else { Some(methods) }, visibility: String::new(), generics: extract_generics(&impl_block.generics), attributes: extract_attributes(&impl_block.attrs), source_link: path_str.to_string() }
 }
 
 fn parse_type_alias(ty: syn::ItemType, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&ty.attrs);
     let vis = extract_visibility(&ty.vis);
     let attributes = extract_attributes(&ty.attrs);
     let generics = extract_generics(&ty.generics);
-    DocItem { kind: "Type Alias".into(), name: ty.ident.to_string(), signature: Some(format!("{} type {} = {}", vis, ty.ident, extract_type(&ty.ty))), docs, details: None, visibility: vis, generics, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Type Alias".into(), name: ty.ident.to_string(), signature: Some(format!("{} type {} = {}", vis, ty.ident, extract_type(&ty.ty))), details: None, visibility: vis, generics, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_const(c: syn::ItemConst, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&c.attrs);
     let vis = extract_visibility(&c.vis);
     let attributes = extract_attributes(&c.attrs);
-    DocItem { kind: "Constant".into(), name: c.ident.to_string(), signature: Some(format!("{} const {}: {}", vis, c.ident, extract_type(&c.ty))), docs, details: None, visibility: vis, generics: None, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Constant".into(), name: c.ident.to_string(), signature: Some(format!("{} const {}: {}", vis, c.ident, extract_type(&c.ty))), details: None, visibility: vis, generics: None, attributes, source_link: path_str.to_string() }
 }
 
 fn parse_static(s: syn::ItemStatic, path_str: &str) -> DocItem {
-    let docs = extract_doc_comments(&s.attrs);
     let vis = extract_visibility(&s.vis);
     let attributes = extract_attributes(&s.attrs);
     let mutability = match &s.mutability { syn::StaticMutability::Mut(_) => "mut ", _ => "" };
-    DocItem { kind: "Static".into(), name: s.ident.to_string(), signature: Some(format!("{} static {}{}: {}", vis, mutability, s.ident, extract_type(&s.ty))), docs, details: None, visibility: vis, generics: None, attributes, source_link: path_str.to_string() }
+    DocItem { kind: "Static".into(), name: s.ident.to_string(), signature: Some(format!("{} static {}{}: {}", vis, mutability, s.ident, extract_type(&s.ty) )), details: None, visibility: vis, generics: None, attributes, source_link: path_str.to_string() }
 }
 
-fn parse_rust_file(path: &Path) -> Option<FileDocs> {
+fn parse_source(path: &Path) -> Option<FileDocs> {
     let src = fs::read_to_string(path).ok()?;
     let file = syn::parse_file(&src).ok()?;
     let path_str = path.display().to_string();
@@ -198,7 +203,7 @@ fn parse_rust_file(path: &Path) -> Option<FileDocs> {
 }
 
 fn collect_files() -> Vec<FileDocs> {
-    WalkDir::new("src").into_iter().filter_map(Result::ok).filter(|e| e.path().extension().map_or(false, |x| x == "rs")).filter_map(|entry| parse_rust_file(entry.path())).filter(|file_docs| !file_docs.items.is_empty()).collect()
+    WalkDir::new("src").into_iter().filter_map(Result::ok).filter(|e| e.path().extension().map_or(false, |x| x == "rs")).filter_map(|entry| parse_source(entry.path())).filter(|file_docs| !file_docs.items.is_empty()).collect()
 }
 
 fn get_project_info() -> ProjectInfo {
@@ -206,13 +211,14 @@ fn get_project_info() -> ProjectInfo {
 }
 
 fn main() {
-    let tera = Tera::new("docs/*.html").unwrap();
+    fs::create_dir_all("docs").unwrap_or_else(|e| { eprintln!("Error creating docs directory: {}", e); process::exit(1) });
+    let tera = Tera::new("docs/*.html").unwrap_or_else(|e| { eprintln!("Error loading templates: {}", e); process::exit(1) });
     let all_files = collect_files();
     let project_info = get_project_info();
     let mut ctx = Context::new();
     ctx.insert("project", &project_info);
     ctx.insert("files", &all_files);
-    let rendered = tera.render("template.html", &ctx).unwrap();
-    fs::write("docs/index.html", rendered).unwrap();
+    let rendered = tera.render("template.html", &ctx).unwrap_or_else(|e| { eprintln!("Error rendering template: {}", e); process::exit(1) });
+    fs::write("docs/index.html", rendered).unwrap_or_else(|e| { eprintln!("Error writing output file: {}", e); process::exit(1) });
     println!("Documentation generated for '{}' v{} - docs/index.html", project_info.name, project_info.version);
 }

@@ -4,7 +4,7 @@ use clap::Parser;
 use qrcode::{QrCode, render::unicode};
 use scrypt::{Params, password_hash::{SaltString, rand_core::{OsRng, RngCore}}};
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
-use std::{fs::{self, OpenOptions}, io::{Seek, SeekFrom, Write}, path::PathBuf};
+use std::{fs::{self, OpenOptions}, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}};
 use tiny_keccak::{Hasher, Keccak};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -52,7 +52,7 @@ fn get_metadata_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(get_wallet_dir()?.join(METADATA_FILE))
 }
 
-fn set_secure_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn set_secure_permissions(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -60,12 +60,13 @@ fn set_secure_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error::Erro
     }
     #[cfg(windows)]
     {
+        let _ = path;
         eprintln!("File permissions not set on Windows. Ensure this directory is protected.");
     }
     Ok(())
 }
 
-fn set_secure_file_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn set_secure_file_permissions(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -73,6 +74,7 @@ fn set_secure_file_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error:
     }
     #[cfg(windows)]
     {
+        let _ = path;
         eprintln!("File permissions not set on Windows. Ensure this file is protected.");
     }
     Ok(())
@@ -470,7 +472,7 @@ fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn secure_overwrite_file(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn secure_overwrite_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let metadata = fs::metadata(path)?;
     let file_size = metadata.len() as usize;
     let mut file = OpenOptions::new().write(true).open(path)?;

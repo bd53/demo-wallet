@@ -15,6 +15,8 @@ mod types;
 use commands::Commands;
 use types::*;
 
+type DeriveResult = Result<(String, Zeroizing<Vec<u8>>), Box<dyn std::error::Error>>;
+
 const WALLET_DIR: &str = ".demo-wallet";
 const WALLET_FILE: &str = "wallet.json";
 const METADATA_FILE: &str = "metadata.json";
@@ -190,37 +192,30 @@ fn derive_bitcoin_addresses(seed: &[u8], index: u32) -> Result<BitcoinAddresses,
 
 fn derive_ethereum_address(seed: &[u8], index: u32) -> Result<String, Box<dyn std::error::Error>> {
     validate_account_index(index)?;
-    use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-    use tiny_hderive::bip32::ExtendedPrivKey;
+    use bip32::XPrv;
+    use k256::ecdsa::SigningKey;
     let path = format!("m/44'/60'/0'/0/{}", index);
-    let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-    let secret_bytes = ext.secret();
-    if secret_bytes.len() < 32 {
-        return Err("Invalid secret key length from HD derivation".into());
-    }
-    let secret = SecretKey::from_slice(&secret_bytes[..32])?;
-    let secp = Secp256k1::new();
-    let public = PublicKey::from_secret_key(&secp, &secret);
-    let public_bytes = public.serialize_uncompressed();
+    let xprv = XPrv::derive_from_path(seed, &path.parse()?)?;
+    let secret_bytes = xprv.to_bytes();
+    let signing_key = SigningKey::from_bytes(&secret_bytes.into())?;
+    let verifying_key = signing_key.verifying_key();
+    let public_bytes = verifying_key.to_encoded_point(false);
     let mut hasher = Keccak::v256();
-    hasher.update(&public_bytes[1..]);
+    hasher.update(&public_bytes.as_bytes()[1..]);
     let mut hash = [0u8; 32];
     hasher.finalize(&mut hash);
     let address = format!("0x{}", hex::encode(&hash[12..]));
     Ok(address)
 }
 
-fn derive_solana_address(seed: &[u8], index: u32) -> Result<(String, Zeroizing<Vec<u8>>), Box<dyn std::error::Error>> {
+fn derive_solana_address(seed: &[u8], index: u32) -> DeriveResult {
     validate_account_index(index)?;
-    use tiny_hderive::bip32::ExtendedPrivKey;
+    use bip32::XPrv;
     let path = format!("m/44'/501'/{}'", index);
-    let ext = ExtendedPrivKey::derive(seed, path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-    let secret_bytes = ext.secret();
-    if secret_bytes.len() < 32 {
-        return Err("Invalid secret key length from HD derivation".into());
-    }
+    let xprv = XPrv::derive_from_path(seed, &path.parse()?)?;
+    let secret_bytes = xprv.to_bytes();
     let mut seed_bytes = Zeroizing::new([0u8; 32]);
-    seed_bytes.copy_from_slice(&secret_bytes[..32]);
+    seed_bytes.copy_from_slice(&secret_bytes);
     let keypair = SolanaKeypair::from_seed(&*seed_bytes)?;
     let address = keypair.pubkey().to_string();
     let secret_key = Zeroizing::new(keypair.to_bytes().to_vec());
@@ -337,7 +332,7 @@ fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn std
 
 fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dyn std::error::Error>> {
     check_wallet_exists()?;
-    if count < 1 || count > ACCOUNT_MAX {
+    if !(1..=ACCOUNT_MAX).contains(&count) {
         return Err(format!("You can only derive between 1 and {} accounts.", ACCOUNT_MAX).into());
     }
     let wallet_file = get_wallet_file()?;
@@ -371,7 +366,7 @@ fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::erro
         return Ok(());
     }
     println!("\nDo NOT share.\n");
-    print!("Your mnemonic phrase:\n");
+    println!("Your mnemonic phrase:");
     println!("{}\n", secure_mnemonic.phrase());
     println!("Write this down on paper and store in a secure location.");
     println!("Never store it digitally, take screenshots, or share it with anyone.\n");
@@ -403,14 +398,11 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
             Zeroizing::new(hex::encode(derived.private_key.secret_bytes()))
         }
         "ethereum" => {
-            use tiny_hderive::bip32::ExtendedPrivKey;
+            use bip32::XPrv;
             let path = format!("m/44'/60'/0'/0/{}", index);
-            let ext = ExtendedPrivKey::derive(secure_seed.as_bytes(), path.as_str()).map_err(|e| format!("HD derivation failed: {:?}", e))?;
-            let secret_bytes = ext.secret();
-            if secret_bytes.len() < 32 {
-                return Err("Invalid secret key length".into());
-            }
-            Zeroizing::new(format!("0x{}", hex::encode(&secret_bytes[..32])))
+            let xprv = XPrv::derive_from_path(secure_seed.as_bytes(), &path.parse()?)?;
+            let secret_bytes = xprv.to_bytes();
+            Zeroizing::new(format!("0x{}", hex::encode(secret_bytes)))
         }
         "solana" => {
             let (_address, secret_key) = derive_solana_address(secure_seed.as_bytes(), index)?;
@@ -421,7 +413,7 @@ fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Resu
         }
     };
     println!("\nDo NOT share.\n");
-    print!("{} Private Key (Account {}):\n", chain.to_uppercase(), index);
+    println!("{} Private Key (Account {}):", chain.to_uppercase(), index);
     println!("{}\n", &*privkey);
     println!("Only import this into trusted wallets on secure devices.\n");
     if qr {

@@ -23,6 +23,9 @@ https://bd53.github.io/demo-wallet/
 - Deterministic account derivation _(BIP44, 20 accounts per wallet + configurable)_.
 - Secure zeroization of sensitive data _(mnemonics, keys, seeds)_.
 - Wallet restore from mnemonic phrases.
-- Optional QR output for wallet viewing.
+- Optional QR output _(wallet viewing, mnemonics, shares, private keys)_.
 - Bitcoin private key conversion _(hex -> WIF, compressed or uncompressed)_.
 - Wallet metadata tracking _(creation date, last accessed, derived accounts)_.
+- Seedless wallet generation using SSS _(Shamir Secret Sharing)_ with configurable threshold and total shares.
+- Individual AES-256-GCM encryption for each Shamir share.
+- Wallet restoration from threshold number of encrypted Shamir shares.

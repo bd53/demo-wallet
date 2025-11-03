@@ -3,7 +3,7 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use clap::Parser;
 use qrcode::{QrCode, render::unicode};
 use scrypt::{Params, password_hash::{SaltString, rand_core::{OsRng, RngCore}}};
-use sharks::{Share, Sharks};
+use blahaj::{Sharks, Share};
 use solana_sdk::signature::{Keypair as SolanaKeypair, SeedDerivable, Signer};
 use std::{fs::{self, OpenOptions}, io::{Seek, SeekFrom, Write}, path::{Path, PathBuf}};
 use tiny_keccak::{Hasher, Keccak};

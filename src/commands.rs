@@ -7,110 +7,97 @@ use crate::wallet::*;
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Generate a new wallet with a mnemonic phrase
     Generate {
-        #[arg(short, long, help = "Password for encryption (min. 8 characters).")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, default_value = "24", help = "Mnemonic word count (12/24, default = 24).")]
+        #[arg(short, long, default_value = "24")]
         words: u32,
     },
-    /// Generate a seedless wallet
     #[command(name = "generate-seedless")]
     GenerateSeedless {
-        #[arg(short, long, help = "Password used to encrypt each Shamir share (min. 8 characters).")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, default_value = "3", help = "Minimum number of shares required to recover the wallet (default = 3, range = 2–10).")]
+        #[arg(short, long, default_value = "3")]
         threshold: u8,
-        #[arg(short = 'n', long, default_value = "5", help = "Total number of encrypted shares to generate (default = 5, range = 3–10).")]
+        #[arg(short = 'n', long, default_value = "5")]
         shares: u8,
     },
-    /// Show wallet addresses for a specific account
     Show {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, default_value = "0", help = "Account index (0–19, default = 0).")]
+        #[arg(short, long, default_value = "0")]
         account: u32,
-        #[arg(long, help = "Display QR codes for addresses.")]
+        #[arg(long)]
         qr: bool,
     },
-    /// Derive multiple accounts from the wallet
     Derive {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, default_value = "5", help = "Number of accounts to derive (1–20, default = 5).")]
+        #[arg(short, long, default_value = "5")]
         count: u32,
     },
-    /// Export the mnemonic phrase (only for mnemonic-based wallets)
     Mnemonic {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
-        #[arg(long, help = "Actually display the mnemonic phrase.")]
+        #[arg(long)]
         reveal: bool,
     },
-    /// Export a private key for a specific chain and account
     #[command(name = "privatekey")]
     Privatekey {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, help = "Blockchain to export key for: bitcoin, ethereum, or solana.")]
+        #[arg(short, long)]
         chain: String,
-        #[arg(short = 'i', long, default_value = "0", help = "Account index (0–19, default = 0).")]
+        #[arg(short = 'i', long, default_value = "0")]
         account: u32,
-        #[arg(long, help = "Display private key as QR code.")]
+        #[arg(long)]
         qr: bool,
     },
-    /// Export a seedless wallet share
     #[command(name = "share")]
     Share {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, help = "Share number to export (1–N).")]
+        #[arg(short, long)]
         number: u8,
-        #[arg(long, help = "Display share as QR code.")]
+        #[arg(long)]
         qr: bool,
-        #[arg(short, long, help = "Output file path for exported share.")]
+        #[arg(short, long)]
         output: Option<String>,
     },
-    /// Convert a private key between different formats
     Convert {
-        #[arg(short, long, help = "Private key in 64-character hex format.")]
+        #[arg(short, long)]
         key: String,
-        #[arg(short, long, help = "Convert key for Bitcoin testnet (default = mainnet).")]
+        #[arg(short, long)]
         testnet: bool,
-        #[arg(short, long, help = "Use uncompressed format for public key (default = compressed).")]
+        #[arg(short, long)]
         uncompressed: bool,
     },
-    /// Restore a wallet from a mnemonic phrase
     Restore {
-        #[arg(short, long, help = "Full 12 or 24-word recovery phrase.")]
+        #[arg(short, long)]
         mnemonic: String,
-        #[arg(short, long, help = "New encryption password (min. 8 characters).")]
+        #[arg(short, long)]
         password: String,
     },
-    /// Restore a seedless wallet from multiple shares
     #[command(name = "restore-seedless")]
     RestoreSeedless {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
-        #[arg(short, long, num_args = 1.., help = "One or more file paths to encrypted share files (space-separated).")]
+        #[arg(short, long, num_args = 1..)]
         shares: Vec<String>,
     },
-    /// Change the wallet password
     #[command(name = "change-password")]
     ChangePassword {
-        #[arg(short, long, help = "Current wallet password.")]
+        #[arg(short, long)]
         old: String,
-        #[arg(short, long, help = "New password for encryption (min. 8 characters).")]
+        #[arg(short, long)]
         new: String,
     },
-    /// Verify wallet integrity and display metadata
     Verify {
-        #[arg(short, long, help = "Wallet decryption password.")]
+        #[arg(short, long)]
         password: String,
     },
-    /// Permanently delete the wallet
     Delete {
-        #[arg(long, help = "Bypass prompt and confirm permanent wallet deletion.")]
+        #[arg(long)]
         confirm: bool,
     },
 }

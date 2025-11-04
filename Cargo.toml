@@ -1,13 +1,22 @@
 [package]
-name = "demo-wallet"
+name = "cws"
 description = "Example crypto wallet for offline key management and cold storage."
 authors = ["bd53"]
-version = "0.32.5"
+version = "0.33.1"
 license = "MIT"
-repository = "https://github.com/bd53/demo-wallet"
-edition = "2024"
+repository = "https://github.com/bd53/cws"
+edition = "2021"
+categories = ["command-line-utilities", "finance"]
+keywords = ["blockchain", "cli", "crypto", "storage", "utility"]
+default-run = "cws"
 
-default-run = "demo-wallet"
+[lib]
+name = "cws"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cws"
+path = "src/main.rs"
 
 [dependencies]
 aes-gcm = "0.10.3"
@@ -37,6 +46,5 @@ tiny-keccak = { version = "2.0", features = ["keccak"] }
 walkdir = "2.5"
 zeroize = "1.8.2"
 
-[[bin]]
-name = "docs"
-path = "docs/generate.rs"
+[package.metadata.docs.rs]
+all-features = true

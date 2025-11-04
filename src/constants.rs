@@ -1,4 +1,4 @@
-pub const WALLET_DIR: &str = ".demo-wallet";
+pub const WALLET_DIR: &str = ".cws";
 pub const WALLET_FILE: &str = "wallet.json";
 pub const METADATA_FILE: &str = "metadata.json";
 pub const SHARES_DIR: &str = ".shares";

@@ -1,7 +1,7 @@
-binary := "demo-wallet"
+binary := "cws"
 target := "release"
 
-all: clean update check test build generate
+all: clean update check test build
 
 clean:
   @echo "Cleaning..."
@@ -22,10 +22,6 @@ test:
 build:
   @echo "Building ({{target}})..."
   cargo build --release
-
-generate:
-  @echo "Generating documentation..."
-  cargo run --release --bin docs
 
 run *ARGS:
   @echo "Running {{binary}} (dev)..."

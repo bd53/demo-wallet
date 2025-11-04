@@ -10,4 +10,4 @@ A complete copy of the license is included in the [LICENSE](./LICENSE) file.
 
 ## Source Code
 
-The original source code is available at: [https://github.com/bd53/demo-wallet](https://github.com/bd53/demo-wallet)
+The original source code is available at: [https://github.com/bd53/cws](https://github.com/bd53/cws)

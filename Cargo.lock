@@ -599,8 +599,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "demo-wallet"
-version = "0.32.5"
+name = "cws"
+version = "0.33.1"
 dependencies = [
  "aes-gcm",
  "bip32",

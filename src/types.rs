@@ -95,7 +95,6 @@ impl SecureMnemonic {
         let salt = format!("mnemonic{}", passphrase);
         let mut seed = [0u8; 64];
         pbkdf2_hmac::<Sha512>(entropy, salt.as_bytes(), 2048, &mut seed);
-
         SecureSeed::new(seed)
     }
 }

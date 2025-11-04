@@ -367,7 +367,6 @@ pub fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
         } else {
             println!("\nMake absolutely sure you have your mnemonic phrase backed up.");
         }
-
         println!("\nUse --confirm flag to proceed: delete --confirm\n");
         return Ok(());
     }
@@ -377,14 +376,18 @@ pub fn delete_wallet(confirm: bool) -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Proceeding with regular deletion...");
     }
     fs::remove_file(&wallet_file)?;
-    if is_seedless && let Some(meta) = &metadata && let Some(config) = &meta.shamir_config {
-        for i in 1..=config.total_shares {
-            let share_file = get_share_file(i)?;
-            if share_file.exists() {
-                if let Err(e) = secure_overwrite_file(&share_file) {
-                    eprintln!("Failed to securely overwrite share {}: {}", i, e);
+    if is_seedless {
+        if let Some(meta) = &metadata {
+            if let Some(config) = &meta.shamir_config {
+                for i in 1..=config.total_shares {
+                    let share_file = get_share_file(i)?;
+                    if share_file.exists() {
+                        if let Err(e) = secure_overwrite_file(&share_file) {
+                            eprintln!("Failed to securely overwrite share {}: {}", i, e);
+                        }
+                        fs::remove_file(share_file)?;
+                    }
                 }
-                fs::remove_file(share_file)?;
             }
         }
     }

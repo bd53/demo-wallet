@@ -1,16 +1,16 @@
-# demo-wallet
+# cws
 
 A minimal self-hosted crypto wallet for offline key management and cold storage.
 
 [![](https://img.shields.io/badge/License-MIT-blue?logo=opensource)](./LICENSE)
-[![](https://img.shields.io/github/contributors/bd53/demo-wallet?logo=github)](https://github.com/bd53/demo-wallet/graphs/contributors)
-[![](https://img.shields.io/github/last-commit/bd53/demo-wallet?logo=github)](https://github.com/bd53/demo-wallet/commits/main)
+[![](https://img.shields.io/github/contributors/bd53/cws?logo=github)](https://github.com/bd53/cws/graphs/contributors)
+[![](https://img.shields.io/github/last-commit/bd53/cws?logo=github)](https://github.com/bd53/cws/commits/main)
 
 For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 
 ## Documentation
 
-https://bd53.github.io/demo-wallet/
+- https://docs.rs/cws/latest/cws/#usage
 
 ## Features
 

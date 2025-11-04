@@ -10,7 +10,7 @@ For additional legal notices, refer to [NOTICE.md](./NOTICE.md).
 
 ## Documentation
 
-- https://docs.rs/cws/latest/cws/#usage
+- https://docs.rs/cws/latest/cws
 
 ## Features
 

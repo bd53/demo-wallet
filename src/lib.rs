@@ -49,7 +49,7 @@
 //! - `-w, --words <count>` (Optional): Mnemonic word count (12 or 24, default = `24`)
 //!
 //! **Note:** Generated addresses are fully functional and can receive and hold funds indefinitely.
-//! If you want to access or transfer funds from an address, export the private key (or mnemonic phrase)
+//! If you want to access or transfer funds from an address, export the private key _(or mnemonic phrase)_
 //! and import it into a trusted, compatible online wallet.
 //!
 //! ### Generate Seedless Wallet
@@ -153,7 +153,7 @@
 //! - `-i, --account <index>` (Optional): Account index (range = 0-max, default = `0`)
 //! - `--qr` (Optional): Display private key as QR code
 //!
-//! **Warning:** Some tools expect WIF format. Convert hex to WIF if needed.
+//! **Note:** Some tools expect WIF format. Convert hex to WIF if needed.
 //! This command technically defeats the purpose of cold storage. It's provided only for users
 //! who insist on accessing or managing their funds from another device, which is **not**
 //! recommended for secure cold storage setups.
@@ -211,7 +211,7 @@
 //!
 //! **Flags:**
 //! - `-k, --key <hex>` (Required): Private key in 64-character hex format
-//! - `-t, --testnet` (Optional): Convert key for Bitcoin testnet (default = mainnet)
+//! - `-t, --testnet` (Optional): Convert key for Bitcoin testnet (default = `mainnet`)
 //! - `-u, --uncompressed` (Optional): Use uncompressed format for public key (default = `compressed`)
 //!
 //! ### Restore Wallet
@@ -235,7 +235,7 @@
 //!
 //! **Flags:**
 //! - `-p, --password <password>` (Required): Wallet decryption password
-//! - `-s, --shares <paths>` (Required): One or more file paths to encrypted share files (space-separated)
+//! - `-s, --shares <paths>` (Required): One or more file paths to encrypted share files _(space-separated)_
 //!
 //! Example: If your wallet was generated with 5 total shares and a threshold of 3, you can
 //! restore it with any 3 valid share files. All provided shares must use the same encryption
@@ -271,9 +271,11 @@
 //! **Flags:**
 //! - `--confirm` (Required): Bypass prompt and confirm permanent wallet deletion
 //!
-//! ## HD Wallet Structure (BIP44)
+//! ## Architecture
 //!
-//! This wallet uses the BIP44 standard for hierarchical deterministic wallets:
+//! ### HD Wallet Structure _(BIP44)_
+//!
+//! Uses the BIP44 standard for hierarchical deterministic wallets:
 //!
 //! ```text
 //! m / purpose' / coin_type' / account' / change / address_index
@@ -286,7 +288,36 @@
 //! - Account 0: Your primary wallet
 //! - Account 1+: Additional wallets from the same seed
 //!
-//! All accounts are cryptographically derived from your mnemonic.
+//! All accounts are cryptographically derived from your mnemonic _(or recovered secret for seedless wallets)_.
+//!
+//! - [BIP44 Multi-Account Hierarchy](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
+//!
+//! ### Mnemonic Phrases _(BIP39)_
+//!
+//! Uses BIP39 to generate a mnemonic phrase _(12 or 24 words)_ from random entropy.
+//! This human-readable phrase serves as a backup for your entire wallet and can restore all
+//! derived accounts.
+//!
+//! - [BIP39 Mnemonic](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+//!
+//! ### Shares _(Shamir Secret Sharing)_
+//!
+//! Seedless wallets eliminate the need for mnemonic phrases by using SSS _(Shamir Secret Sharing)_
+//! to split your wallet's master secret into multiple encrypted shares. You configure a threshold
+//! _(minimum shares needed)_ and total number of shares during generation. For example, a 3-of-5
+//! configuration creates 5 shares where any 3 can recover your wallet.
+//!
+//! **Key benefits:**
+//! - No mnemonic phrase to memorize, write down, or lose.
+//! - Shares can be distributed to different secure locations.
+//! - Losing some shares doesn't compromise your wallet _(as long as you retain the threshold)_.
+//! - Each share is individually encrypted with your password.
+//!
+//! **Note:** Back up your shares using the `share` command and store them separately.
+//! If you lose too many shares _(below the threshold)_, your wallet cannot be recovered.
+//!
+//! - [Shamir Secret Sharing](https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing)
+//!
 
 pub mod commands;
 pub mod constants;

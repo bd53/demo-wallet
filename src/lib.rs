@@ -1,15 +1,8 @@
-//! # cws
-//!
-//! Example crypto wallet for offline key management and cold storage.
-//!
-//! This crate provides functionality for managing cryptocurrency wallets with a focus
-//! on offline key management and cold storage security.
-//!
-//! ## Usage
+//! # Usage
 //!
 //! This is primarily a command-line application. For CLI usage, see the examples below.
 //!
-//! ### Commands
+//! ## Commands
 //!
 //! You can run the project using Cargo or the compiled binary:
 //!

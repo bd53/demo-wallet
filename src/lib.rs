@@ -374,9 +374,9 @@
 //! - All shares must use the same password
 //! - Shares must be from the same wallet (compatible with each other)
 //!
-//! **To recover your wallet, you need to have any combination of shares
-//! that meet of shares that meet the required threshold. Individual
-//! shares alone won't work – there's no single point of failure. If you
+//! **To recover your wallet, you need to have any combination of
+//! shares that meet the required threshold. Individual shares
+//! alone won't work – there's no single point of failure. If you
 //! lose too many shares (below threshold), your wallet cannot be recovered.**
 //!
 //! **Note:** If your wallet was created with 5 total shares and a threshold of 3,

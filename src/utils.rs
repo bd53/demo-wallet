@@ -81,7 +81,7 @@ pub fn get_wallet_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let wallet_dir = home.join(WALLET_DIR);
     if !wallet_dir.exists() {
         fs::create_dir_all(&wallet_dir)?;
-        set_secure_permissions(&wallet_dir)?;
+        set_secure_file_permissions(&wallet_dir)?;
     }
     Ok(wallet_dir)
 }
@@ -112,7 +112,7 @@ pub fn get_shares_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let shares_dir = get_wallet_dir()?.join(SHARES_DIR);
     if !shares_dir.exists() {
         fs::create_dir_all(&shares_dir)?;
-        set_secure_permissions(&shares_dir)?;
+        set_secure_file_permissions(&shares_dir)?;
     }
     Ok(shares_dir)
 }
@@ -141,30 +141,20 @@ pub fn secure_overwrite_file(path: &Path) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-pub fn set_secure_permissions(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700))?;
-    }
-    #[cfg(windows)]
-    {
-        let _ = path;
-        eprintln!("File permissions not set on Windows. Ensure this directory is protected.");
-    }
-    Ok(())
-}
-
 pub fn set_secure_file_permissions(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+        let metadata = fs::metadata(path)?;
+        let mode = if metadata.is_dir() { 0o700 } else { 0o600 };
+        fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
     }
     #[cfg(windows)]
     {
         let _ = path;
-        eprintln!("File permissions not set on Windows. Ensure this file is protected.");
+        let metadata = fs::metadata(path)?;
+        let file_type = if metadata.is_dir() { "directory" } else { "file" };
+        eprintln!("File permissions not set on Windows. Ensure this {} is protected.", file_type);
     }
     Ok(())
 }

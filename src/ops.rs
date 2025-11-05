@@ -222,10 +222,12 @@ pub fn export_share(password: &str, number: u8, qr: bool, output_path: Option<&s
     }
     let contents = fs::read_to_string(&share_file)?;
     let encrypted_share: EncryptedShare = serde_json::from_str(&contents)?;
-    let _share_data = decrypt_share(&encrypted_share, password)?;
+    decrypt_share(&encrypted_share, password)?;
     let export_data = serde_json::to_string_pretty(&encrypted_share)?;
     if let Some(path) = output_path {
+        let path_obj = std::path::Path::new(path);
         fs::write(path, &export_data)?;
+        set_secure_file_permissions(path_obj)?;
         println!("\nShare {} exported to: {}", number, path);
     } else {
         println!("\n═══════════════════════════════════════════");

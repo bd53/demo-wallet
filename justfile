@@ -1,7 +1,7 @@
 binary := "cws"
 target := "release"
 
-all: clean update check test build
+all: clean update check test build docs
 
 clean:
   @echo "Cleaning..."
@@ -23,24 +23,10 @@ build:
   @echo "Building ({{target}})..."
   cargo build --release
 
-run *ARGS:
-  @echo "Running {{binary}} (dev)..."
-  cargo run -- {{ARGS}}
+docs:
+  @echo "Generating documentation..."
+  cargo doc --no-deps --open
 
-run-release *ARGS:
-  @echo "Running {{binary}} (release)..."
-  cargo run --release -- {{ARGS}}
-
-exec *ARGS:
-  @echo "Executing {{binary}}..."
-  ./target/release/{{binary}} {{ARGS}}
-
-build-run *ARGS: build
-  @echo "Running {{binary}}..."
-  ./target/release/{{binary}} {{ARGS}}
-
-dev *ARGS: check test
-  cargo run -- {{ARGS}}
-
-full *ARGS: all
-  ./target/release/{{binary}} {{ARGS}}
+publish:
+  @echo "Publishing..."
+  cargo publish

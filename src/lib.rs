@@ -49,7 +49,7 @@
 //!    ```
 //!
 //! **Flags:**
-//! - `-p, --password <PASSWORD>` (Required): Encryption password (min. 8 characters, must include uppercase, lowercase, number, and symbol)
+//! - `-p, --password <PASSWORD>` (Required): Encryption password
 //! - `-w, --words <COUNT>` (Optional): Mnemonic word count (12 or 24, default = `24`)
 //!
 //! **Output:**
@@ -59,7 +59,8 @@
 //!
 //! **Generated addresses can receive funds immediately and will remain valid indefinitely.**
 //!
-//! **Note:** Write down your mnemonic phrase and store it securely offline. Use `mnemonic --reveal` to view it later.
+//! **Note:** After generating a mnemonic-based wallet, use `mnemonic
+//! --reveal` to display the mnemonic phrase and make sure to store it securely.
 //!
 //! ### Generate Seedless Wallet
 //!
@@ -81,7 +82,7 @@
 //!    ```
 //!
 //! **Flags:**
-//! - `-p, --password <PASSWORD>` (Required): Encryption password for all shares
+//! - `-p, --password <PASSWORD>` (Required): Encryption password (for all shares)
 //! - `-t, --threshold <COUNT>` (Optional): Minimum shares needed for recovery (range = 2-10, default = `3`)
 //! - `-n, --shares <COUNT>` (Optional): Total shares to generate (range = 3-10, default = `5`)
 //!
@@ -91,33 +92,31 @@
 //! - Creates `~/.cws/.shares/share_N.json` (one file per share)
 //! - Displays initial addresses for Bitcoin, Ethereum, and Solana (account 0)
 //!
-//! **Export each share using `share` command and store in separate secure locations.**
-//!
-//! **Note:** You need ANY threshold number of shares to recover your wallet.
-//! Individual shares are useless alone - no single point of failure.
+//! **Note:** After generating a seedless wallet, use `share`
+//! to export each share and ensure they are stored securely.
 //!
 //! ### Show Addresses
 //!
-//! Display wallet addresses.
+//! Display all addresses for wallet accounts.
 //!
 //! 1. Show default account (account 0):
 //!    ```bash
 //!    cargo run --release -- show -p "password"
 //!    ```
 //!
-//! 2. Show specific account:
+//! 2. Show specific account (account 3):
 //!    ```bash
-//!    cargo run --release -- show -p "password" -a 5
+//!    cargo run --release -- show -p "password" -a 3
 //!    ```
 //!
-//! 3. Show with QR codes for easy scanning:
+//! 3. Show default account + QR codes:
 //!    ```bash
 //!    cargo run --release -- show -p "password" --qr
 //!    ```
 //!
-//! 4. Show specific account with QR codes:
+//! 4. Show specific account + QR codes (account 5):
 //!    ```bash
-//!    cargo run --release -- show -p "password" -a 3 --qr
+//!    cargo run --release -- show -p "password" -a 5 --qr
 //!    ```
 //!
 //! **Flags:**
@@ -188,22 +187,22 @@
 //!
 //! Export private key for a specific blockchain and account.
 //!
-//! 1. Export Bitcoin private key (hex format):
+//! 1. Export Bitcoin private key (account 0):
 //!    ```bash
 //!    cargo run --release -- privatekey -p "password" -c bitcoin
 //!    ```
 //!
-//! 2. Export Ethereum private key for account 1:
+//! 2. Export Ethereum private key (account 1):
 //!    ```bash
 //!    cargo run --release -- privatekey -p "password" -c ethereum -i 1
 //!    ```
 //!
-//! 3. Export Solana private key with QR code:
+//! 3. Export Solana private key + QR code:
 //!    ```bash
 //!    cargo run --release -- privatekey -p "password" -c solana --qr
 //!    ```
 //!
-//! 4. Export for specific account with QR code:
+//! 4. Export Ethereum private key + QR code (account 5):
 //!    ```bash
 //!    cargo run --release -- privatekey -p "password" -c ethereum -i 5 --qr
 //!    ```
@@ -221,29 +220,29 @@
 //!
 //! **Never share private keys or display them on untrusted devices.**
 //!
-//! **Note:** This command should only be used when absolutely
-//! necessary to import keys into another trusted wallet.
+//! **Note:** This command should only be used when it's
+//! absolutely necessary to import keys into another trusted wallet.
 //!
 //! ### Export Share
 //!
-//! Export an encrypted share from a seedless wallet.
+//! Export encrypted share from a seedless wallet.
 //!
 //! 1. Display share 1:
 //!    ```bash
 //!    cargo run --release -- share -p "password" -n 1
 //!    ```
 //!
-//! 2. Display share 2 as QR code:
+//! 2. Display share 2 + QR code:
 //!    ```bash
 //!    cargo run --release -- share -p "password" -n 2 --qr
 //!    ```
 //!
-//! 3. Export share 3 to a file:
+//! 3. Export share 3 to file:
 //!    ```bash
 //!    cargo run --release -- share -p "password" -n 3 -o "./backup/share_3.json"
 //!    ```
 //!
-//! 4. Export to USB drive:
+//! 4. Export share 4 to USB:
 //!    ```bash
 //!    cargo run --release -- share -p "password" -n 4 -o "/media/usb/share_4.json"
 //!    ```
@@ -256,9 +255,9 @@
 //!
 //! **This command will fail for mnemonic-based wallets. Use `mnemonic` command instead.**
 //!
-//! **Note:** Store each share in a physically separate, secure location. Never keep
-//! all shares together or in the same location. Anyone with threshold number of shares
-//! can reconstruct your entire wallet. Individual shares reveal no information about the wallet.
+//! **Note:** Keep each share in a separate, secure location. Never store all shares together
+//! or in the same place. Anyone with the required number of shares can reconstruct your
+//! entire wallet. Individual shares do not reveal any information about the wallet.
 //!
 //! ### Convert Private Key
 //!
@@ -284,7 +283,7 @@
 //!    cargo run --release -- convert -k privatekey -t -u
 //!    ```
 //!
-//! 5. Accepts `0x` prefix:
+//! 5. Also accepts `0x` prefix:
 //!    ```bash
 //!    cargo run --release -- convert -k 0xprivatekey
 //!    ```
@@ -322,7 +321,7 @@
 //!
 //! **Flags:**
 //! - `-m, --mnemonic <phrase>` (Required): Complete 12 or 24-word BIP39 recovery phrase
-//! - `-p, --password <PASSWORD>` (Required): New encryption password (min. 8 characters with complexity requirements)
+//! - `-p, --password <PASSWORD>` (Required): New encryption password
 //!
 //! **Output:**
 //! - Creates new `~/.cws/wallet.json` (encrypted mnemonic)
@@ -332,7 +331,7 @@
 //! **Requirements:**
 //! - No existing wallet (use `delete` first if needed)
 //! - Valid BIP39 mnemonic phrase (correct word count and checksum)
-//! - Password meeting security requirements
+//! - Correct password format
 //!
 //! **Use Cases:**
 //! - Recover wallet after deleting local files
@@ -359,7 +358,7 @@
 //!    ```
 //!
 //! **Flags:**
-//! - `-p, --password <PASSWORD>` (Required): Password used to encrypt the shares (must be same as original)
+//! - `-p, --password <PASSWORD>` (Required): Wallet decryption password
 //! - `-s, --shares <paths>` (Required): Space-separated paths to encrypted share files
 //!
 //! **Output:**
@@ -375,21 +374,26 @@
 //! - All shares must use the same password
 //! - Shares must be from the same wallet (compatible with each other)
 //!
-//! **Note:** If your wallet was generated with 5 total shares and a threshold of 3,
-//! you can restore it using ANY 3 (or more) of those 5 shares. The shares can be
-//! in any order and you don't need to know which specific shares you're using.
+//! **To recover your wallet, you need to have any combination of shares
+//! that meet of shares that meet the required threshold. Individual
+//! shares alone won't work – there's no single point of failure. If you
+//! lose too many shares (below threshold), your wallet cannot be recovered.**
+//!
+//! **Note:** If your wallet was created with 5 total shares and a threshold of 3,
+//! you can restore it with any 3 (or more) of those 5 shares. The order doesn't matter,
+//! and you don't need to know which specific shares you're using.
 //!
 //! ### Change Password
 //!
 //! Change wallet encryption password.
 //!
 //! ```bash
-//! cargo run --release -- change-password -o "current-password" -n "new-secure-password"
+//! cargo run --release -- change-password -o "current-password" -n "new-password"
 //! ```
 //!
 //! **Flags:**
-//! - `-o, --old <PASSWORD>` (Required): Current wallet password
-//! - `-n, --new <PASSWORD>` (Required): New password (min. 8 characters with complexity requirements)
+//! - `-o, --old <PASSWORD>` (Required): Current password
+//! - `-n, --new <PASSWORD>` (Required): New encryption password
 //!
 //! **Behavior:**
 //! - Mnemonic wallets: Re-encrypts `wallet.json` with new password
@@ -397,7 +401,7 @@
 //!
 //! **Requirements:**
 //! - Old password must be correct
-//! - New password must meet security requirements (length, uppercase, lowercase, number, symbol)
+//! - Correct password format
 //! - Wallet must exist
 //!
 //! **Note:** This does not change the underlying wallet or addresses,
@@ -414,12 +418,6 @@
 //! **Flags:**
 //! - `-p, --password <PASSWORD>` (Required): Wallet decryption password
 //!
-//! **Use Cases:**
-//! - Test password before performing operations
-//! - Check wallet integrity after system changes
-//! - Verify which shares are available (seedless wallets)
-//! - Review wallet configuration
-//!
 //! ### Delete Wallet
 //!
 //! Permanently delete wallet and all associated files.
@@ -428,14 +426,9 @@
 //! - Mnemonic wallets: Ensure you have your mnemonic phrase backed up securely
 //! - Seedless wallets: Ensure you have exported all shares and stored them separately
 //!
-//! 1. Show warning and instructions (no deletion):
+//! 1. Start delete confirmation:
 //!    ```bash
 //!    cargo run --release -- delete
-//!    ```
-//!
-//! 2. Permanently delete wallet (confirmed):
-//!    ```bash
-//!    cargo run --release -- delete --confirm
 //!    ```
 //!
 //! **Flags:**
@@ -495,11 +488,6 @@
 //! - Each share is individually encrypted with your password
 //! - No single point of failure
 //!
-//! **Back up shares using the `share` command and store them separately.**
-//!
-//! **Note:** If you lose too many shares
-//! (below threshold), your wallet cannot be recovered.
-//!
 //! # Common Issues
 //!
 //! ### "No wallet found"
@@ -548,7 +536,7 @@ pub mod crypto;
 /// HD wallet derivation.
 pub mod derive;
 
-/// Core operations.
+/// Core operations (generate, view, restore, etc.).
 pub mod ops;
 
 /// Type definitions and data structures.
@@ -556,6 +544,3 @@ pub mod types;
 
 /// Utility functions and helpers.
 pub mod utils;
-
-/// Wallet generation.
-pub mod wallet;

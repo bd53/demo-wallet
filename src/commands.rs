@@ -3,7 +3,6 @@ use clap::Subcommand;
 
 use crate::derive::*;
 use crate::ops::*;
-use crate::wallet::*;
 
 #[derive(Subcommand)]
 pub enum Commands {

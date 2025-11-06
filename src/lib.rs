@@ -1,8 +1,22 @@
 //! # Usage
 //!
-//! This is primarily a command-line application. For CLI usage, see the examples below.
+//! This tool uses a graphical user interface as the primary method of interaction.
+//! The command-line interface remains available as a backup.
 //!
-//! You can run the project using Cargo or the compiled binary:
+//! ## GUI
+//!
+//! ```bash
+//! # Using cargo
+//! cargo run
+//!
+//! # For optimized builds
+//! cargo run --release
+//!
+//! # Using the compiled binary
+//! ./target/release/cws
+//! ```
+//!
+//! ## CLI
 //!
 //! ```bash
 //! # Using cargo
@@ -15,23 +29,6 @@
 //! ./target/release/cws <command> [options]
 //! ```
 //!
-//! ## Quick Start
-//!
-//! 1. Generate wallet:
-//!    ```bash
-//!    cargo run --release -- generate -p "password"
-//!    ```
-//!
-//! 2. View addresses:
-//!    ```bash
-//!    cargo run --release -- show -p "password"
-//!    ```
-//!
-//! 3. Back up mnemonic (keep this safe and offline):
-//!    ```bash
-//!    cargo run --release -- mnemonic -p "password" --reveal
-//!    ```
-//!
 //! ## Commands
 //!
 //! ### Generate Wallet
@@ -40,12 +37,12 @@
 //!
 //! 1. Generate with 24-word mnemonic (recommended):
 //!    ```bash
-//!    cargo run --release -- generate -p "password"
+//!    cargo run -- generate -p "password"
 //!    ```
 //!
 //! 2. Generate with 12-word mnemonic:
 //!    ```bash
-//!    cargo run --release -- generate -p "password" -w 12
+//!    cargo run -- generate -p "password" -w 12
 //!    ```
 //!
 //! **Flags:**
@@ -68,17 +65,17 @@
 //!
 //! 1. Default: 3-of-5 configuration (need any 3 shares to recover):
 //!    ```bash
-//!    cargo run --release -- generate-seedless -p "password"
+//!    cargo run -- generate-seedless -p "password"
 //!    ```
 //!
 //! 2. Custom: 2-of-3 configuration:
 //!    ```bash
-//!    cargo run --release -- generate-seedless -p "password" -t 2 -n 3
+//!    cargo run -- generate-seedless -p "password" -t 2 -n 3
 //!    ```
 //!
 //! 3. High security: 5-of-7 configuration:
 //!    ```bash
-//!    cargo run --release -- generate-seedless -p "password" -t 5 -n 7
+//!    cargo run -- generate-seedless -p "password" -t 5 -n 7
 //!    ```
 //!
 //! **Flags:**
@@ -101,22 +98,22 @@
 //!
 //! 1. Show default account (account 0):
 //!    ```bash
-//!    cargo run --release -- show -p "password"
+//!    cargo run -- show -p "password"
 //!    ```
 //!
 //! 2. Show specific account (account 3):
 //!    ```bash
-//!    cargo run --release -- show -p "password" -a 3
+//!    cargo run -- show -p "password" -a 3
 //!    ```
 //!
 //! 3. Show default account + QR codes:
 //!    ```bash
-//!    cargo run --release -- show -p "password" --qr
+//!    cargo run -- show -p "password" --qr
 //!    ```
 //!
 //! 4. Show specific account + QR codes (account 5):
 //!    ```bash
-//!    cargo run --release -- show -p "password" -a 5 --qr
+//!    cargo run -- show -p "password" -a 5 --qr
 //!    ```
 //!
 //! **Flags:**
@@ -137,12 +134,12 @@
 //!
 //! 1. Derive first 5 accounts:
 //!    ```bash
-//!    cargo run --release -- derive -p "password" -c 5
+//!    cargo run -- derive -p "password" -c 5
 //!    ```
 //!
 //! 2. Derive up to maximum (20 accounts):
 //!    ```bash
-//!    cargo run --release -- derive -p "password" -c 20
+//!    cargo run -- derive -p "password" -c 20
 //!    ```
 //!
 //! **Flags:**
@@ -165,12 +162,12 @@
 //!
 //! 1. Verify password without showing mnemonic:
 //!    ```bash
-//!    cargo run --release -- mnemonic -p "password"
+//!    cargo run -- mnemonic -p "password"
 //!    ```
 //!
 //! 2. Display the mnemonic phrase (sensitive!):
 //!    ```bash
-//!    cargo run --release -- mnemonic -p "password" --reveal
+//!    cargo run -- mnemonic -p "password" --reveal
 //!    ```
 //!
 //! **Flags:**
@@ -189,22 +186,22 @@
 //!
 //! 1. Export Bitcoin private key (account 0):
 //!    ```bash
-//!    cargo run --release -- privatekey -p "password" -c bitcoin
+//!    cargo run -- privatekey -p "password" -c bitcoin
 //!    ```
 //!
 //! 2. Export Ethereum private key (account 1):
 //!    ```bash
-//!    cargo run --release -- privatekey -p "password" -c ethereum -i 1
+//!    cargo run -- privatekey -p "password" -c ethereum -i 1
 //!    ```
 //!
 //! 3. Export Solana private key + QR code:
 //!    ```bash
-//!    cargo run --release -- privatekey -p "password" -c solana --qr
+//!    cargo run -- privatekey -p "password" -c solana --qr
 //!    ```
 //!
 //! 4. Export Ethereum private key + QR code (account 5):
 //!    ```bash
-//!    cargo run --release -- privatekey -p "password" -c ethereum -i 5 --qr
+//!    cargo run -- privatekey -p "password" -c ethereum -i 5 --qr
 //!    ```
 //!
 //! **Flags:**
@@ -229,22 +226,22 @@
 //!
 //! 1. Display share 1:
 //!    ```bash
-//!    cargo run --release -- share -p "password" -n 1
+//!    cargo run -- share -p "password" -n 1
 //!    ```
 //!
 //! 2. Display share 2 + QR code:
 //!    ```bash
-//!    cargo run --release -- share -p "password" -n 2 --qr
+//!    cargo run -- share -p "password" -n 2 --qr
 //!    ```
 //!
 //! 3. Export share 3 to file:
 //!    ```bash
-//!    cargo run --release -- share -p "password" -n 3 -o "./backup/share_3.json"
+//!    cargo run -- share -p "password" -n 3 -o "./backup/share_3.json"
 //!    ```
 //!
 //! 4. Export share 4 to USB:
 //!    ```bash
-//!    cargo run --release -- share -p "password" -n 4 -o "/media/usb/share_4.json"
+//!    cargo run -- share -p "password" -n 4 -o "/media/usb/share_4.json"
 //!    ```
 //!
 //! **Flags:**
@@ -265,27 +262,27 @@
 //!
 //! 1. Convert for mainnet (compressed):
 //!    ```bash
-//!    cargo run --release -- convert -k privatekey
+//!    cargo run -- convert -k privatekey
 //!    ```
 //!
 //! 2. Convert for testnet:
 //!    ```bash
-//!    cargo run --release -- convert -k privatekey -t
+//!    cargo run -- convert -k privatekey -t
 //!    ```
 //!
 //! 3. Convert uncompressed (mainnet):
 //!    ```bash
-//!    cargo run --release -- convert -k privatekey -u
+//!    cargo run -- convert -k privatekey -u
 //!    ```
 //!
 //! 4. Convert uncompressed (testnet):
 //!    ```bash
-//!    cargo run --release -- convert -k privatekey -t -u
+//!    cargo run -- convert -k privatekey -t -u
 //!    ```
 //!
 //! 5. Also accepts `0x` prefix:
 //!    ```bash
-//!    cargo run --release -- convert -k 0xprivatekey
+//!    cargo run -- convert -k 0xprivatekey
 //!    ```
 //!
 //! **Flags:**
@@ -311,12 +308,12 @@
 //!
 //! 1. Restore from 12-word mnemonic:
 //!    ```bash
-//!    cargo run --release -- restore -m "twelve word mnemonic phrase..." -p "new-password"
+//!    cargo run -- restore -m "twelve word mnemonic phrase..." -p "new-password"
 //!    ```
 //!
 //! 2. Restore from 24-word mnemonic:
 //!    ```bash
-//!    cargo run --release -- restore -m "twenty four word mnemonic phrase..." -p "new-password"
+//!    cargo run -- restore -m "twenty four word mnemonic phrase..." -p "new-password"
 //!    ```
 //!
 //! **Flags:**
@@ -344,17 +341,17 @@
 //!
 //! 1. Restore with exactly threshold shares (3-of-5 example):
 //!    ```bash
-//!    cargo run --release -- restore-seedless -p "password" -s ~/.cws/.shares/share_1.json ~/.cws/.shares/share_2.json ~/.cws/.shares/share_3.json
+//!    cargo run -- restore-seedless -p "password" -s ~/.cws/.shares/share_1.json ~/.cws/.shares/share_2.json ~/.cws/.shares/share_3.json
 //!    ```
 //!
 //! 2. Restore from backup locations:
 //!    ```bash
-//!    cargo run --release -- restore-seedless -p "password" -s /media/usb/share_1.json ~/Documents/share_3.json ~/Dropbox/share_5.json
+//!    cargo run -- restore-seedless -p "password" -s /media/usb/share_1.json ~/Documents/share_3.json ~/Dropbox/share_5.json
 //!    ```
 //!
 //! 3. Restore with more than threshold (any combination works):
 //!    ```bash
-//!    cargo run --release -- restore-seedless -p "password" -s share_1.json share_2.json share_3.json share_4.json
+//!    cargo run -- restore-seedless -p "password" -s share_1.json share_2.json share_3.json share_4.json
 //!    ```
 //!
 //! **Flags:**
@@ -388,7 +385,7 @@
 //! Change wallet encryption password.
 //!
 //! ```bash
-//! cargo run --release -- change-password -o "current-password" -n "new-password"
+//! cargo run -- change-password -o "current-password" -n "new-password"
 //! ```
 //!
 //! **Flags:**
@@ -412,7 +409,7 @@
 //! Verify wallet integrity and information.
 //!
 //! ```bash
-//! cargo run --release -- verify -p "password"
+//! cargo run -- verify -p "password"
 //! ```
 //!
 //! **Flags:**
@@ -428,7 +425,7 @@
 //!
 //! 1. Start delete confirmation:
 //!    ```bash
-//!    cargo run --release -- delete
+//!    cargo run -- delete
 //!    ```
 //!
 //! **Flags:**

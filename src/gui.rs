@@ -10,6 +10,8 @@ use cws::ops::*;
 use cws::types::*;
 use cws::utils::*;
 
+type AddressResult = Result<(Addresses, Option<QrImages>), String>;
+
 pub struct WalletGui {
     current_view: View,
     wallet_loaded: bool,
@@ -35,9 +37,16 @@ pub struct WalletGui {
     wallet_info: Option<String>,
     status_message: String,
     error_message: String,
-    is_generating: bool,
+    is_processing: bool,
     qr_images: QrImages,
     gen_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    verify_rx: Option<mpsc::Receiver<Result<String, String>>>,
+    addr_rx: Option<mpsc::Receiver<AddressResult>>,
+    derive_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    export_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    restore_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    change_pwd_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    delete_rx: Option<mpsc::Receiver<Result<(), String>>>,
 }
 
 #[derive(Default)]
@@ -87,16 +96,23 @@ impl Default for WalletGui {
             wallet_info: None,
             status_message: String::new(),
             error_message: String::new(),
-            is_generating: false,
+            is_processing: false,
             qr_images: QrImages::default(),
             gen_rx: None,
+            verify_rx: None,
+            addr_rx: None,
+            derive_rx: None,
+            export_rx: None,
+            restore_rx: None,
+            change_pwd_rx: None,
+            delete_rx: None,
         }
     }
 }
 
 impl eframe::App for WalletGui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.handle_generation_result();
+        self.handle_pending_results();
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             self.show_menu_bar(ui);
         });
@@ -123,11 +139,11 @@ impl eframe::App for WalletGui {
 }
 
 impl WalletGui {
-    fn handle_generation_result(&mut self) {
+    fn handle_pending_results(&mut self) {
         if let Some(rx) = self.gen_rx.take() {
             match rx.try_recv() {
                 Ok(result) => {
-                    self.is_generating = false;
+                    self.is_processing = false;
                     match result {
                         Ok(_) => {
                             self.set_status_ok("Wallet generated successfully.");
@@ -141,8 +157,168 @@ impl WalletGui {
                     self.gen_rx = Some(rx);
                 }
                 Err(mpsc::TryRecvError::Disconnected) => {
-                    self.is_generating = false;
-                    self.set_error("Generation thread disconnected");
+                    self.is_processing = false;
+                    self.set_error("Generation thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.verify_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok(info) => {
+                            self.wallet_loaded = true;
+                            self.set_status_ok("Wallet verified successfully.");
+                            self.wallet_info = Some(info);
+                        }
+                        Err(e) => {
+                            self.wallet_loaded = false;
+                            self.set_error(&format!("Verification failed: {}", e));
+                            self.wallet_info = None;
+                        }
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.verify_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Verification thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.addr_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok((addrs, qr_imgs)) => {
+                            self.addresses = Some(addrs);
+                            if let Some(qr) = qr_imgs {
+                                self.qr_images = qr;
+                            }
+                            self.set_status_ok(&format!("Addresses loaded (Account {}).", self.account_index));
+                        }
+                        Err(e) => {
+                            self.set_error(&format!("Failed to load addresses: {}", e));
+                            self.addresses = None;
+                            self.qr_images = QrImages::default();
+                        }
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.addr_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Address loading thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.derive_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok(_) => self.set_status_ok(&format!("Derived ({}) accounts successfully.", self.derive_count)),
+                        Err(e) => self.set_error(&format!("Failed to derive accounts: {}", e)),
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.derive_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Derivation thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.export_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok(_) => self.set_status_ok("Data exported successfully."),
+                        Err(e) => self.set_error(&format!("Export failed: {}", e)),
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.export_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Export thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.restore_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok(_) => {
+                            self.set_status_ok("Wallet restored successfully.");
+                            self.refresh_wallet_status();
+                            self.restore_mnemonic.clear();
+                            self.restore_password.clear();
+                            self.restore_share_paths.clear();
+                        }
+                        Err(e) => self.set_error(&format!("Restore failed: {}", e)),
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.restore_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Restore thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.change_pwd_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok(_) => {
+                            self.set_status_ok("Password changed successfully.");
+                            self.old_password.clear();
+                            self.new_password.clear();
+                        }
+                        Err(e) => self.set_error(&format!("Password change failed: {}", e)),
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.change_pwd_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Password change thread disconnected.");
+                }
+            }
+        }
+        if let Some(rx) = self.delete_rx.take() {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.is_processing = false;
+                    match result {
+                        Ok(_) => {
+                            self.set_status_ok("Wallet deleted successfully.");
+                            self.refresh_wallet_status();
+                            self.addresses = None;
+                            self.wallet_info = None;
+                            self.wallet_loaded = false;
+                        }
+                        Err(e) => self.set_error(&format!("Deletion failed: {}", e)),
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.delete_rx = Some(rx);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.is_processing = false;
+                    self.set_error("Deletion thread disconnected");
                 }
             }
         }
@@ -205,7 +381,7 @@ impl WalletGui {
                 ui.colored_label(egui::Color32::RED, self.error_message.as_str());
             } else if !self.status_message.is_empty() {
                 ui.colored_label(egui::Color32::GREEN, self.status_message.as_str());
-            } else if self.is_generating {
+            } else if self.is_processing {
                 ui.colored_label(egui::Color32::YELLOW, "Processing...");
             } else {
                 ui.label("Ready");
@@ -241,16 +417,6 @@ impl WalletGui {
         self.wallet_type = self.wallet_exists.then(|| load_metadata().ok().flatten().map(|m| m.wallet_type)).flatten();
     }
 
-    fn generate_qr_from_string(&self, data: &str) -> Option<egui::ColorImage> {
-        QrCode::new(data).ok().map(|code| {
-            let image = code.render::<Luma<u8>>().build();
-            let width = image.width() as usize;
-            let height = image.height() as usize;
-            let pixels = image.into_raw().into_iter().map(|pixel| egui::Color32::from_gray(if pixel > 128 { 255 } else { 0 })).collect();
-            egui::ColorImage { size: [width, height], pixels }
-        })
-    }
-
     fn show_overview(&mut self, ui: &mut egui::Ui) {
         ui.heading("Overview");
         ui.separator();
@@ -265,8 +431,8 @@ impl WalletGui {
             let response = ui.add(egui::TextEdit::singleline(&mut self.password).password(!self.show_password).desired_width(200.0));
             ui.checkbox(&mut self.show_password, "Show");
             let should_verify = ui.button("Verify").clicked() || (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
-            if should_verify {
-                self.verify_and_load_wallet();
+            if should_verify && !self.is_processing {
+                self.start_verify_wallet();
             }
         });
         if let Some(ref info) = self.wallet_info {
@@ -289,28 +455,32 @@ impl WalletGui {
         }
     }
 
-    fn verify_and_load_wallet(&mut self) {
-        match verify_wallet(&self.password) {
-            Ok(_) => {
-                self.wallet_loaded = true;
-                self.set_status_ok("Wallet verified successfully.");
-                if let Ok(Some(metadata)) = load_metadata() {
-                    let mut info = format!("Type: {:?}\nVersion: {}\nCreated: {}\nAccounts: {}", metadata.wallet_type, metadata.version, metadata.created_at, metadata.address_count);
-                    if let Some(config) = metadata.shamir_config {
-                        info.push_str(&format!("\nShamir: {}-of-{}", config.threshold, config.total_shares));
+    fn start_verify_wallet(&mut self) {
+        self.is_processing = true;
+        let password = self.password.clone();
+        let (tx, rx) = mpsc::channel();
+        self.verify_rx = Some(rx);
+        thread::spawn(move || {
+            let result = match verify_wallet(&password) {
+                Ok(_) => {
+                    match load_metadata() {
+                        Ok(Some(metadata)) => {
+                            let mut info = format!("Type: {:?}\nVersion: {}\nCreated: {}\nAccounts: {}", metadata.wallet_type, metadata.version, metadata.created_at, metadata.address_count);
+                            if let Some(config) = metadata.shamir_config {
+                                info.push_str(&format!("\nShamir: {}-of-{}", config.threshold, config.total_shares));
+                            }
+                            if let Some(last) = metadata.last_accessed {
+                                info.push_str(&format!("\nLast Accessed: {}", last));
+                            }
+                            Ok(info)
+                        }
+                        _ => Ok("Wallet verified".to_string())
                     }
-                    if let Some(last) = metadata.last_accessed {
-                        info.push_str(&format!("\nLast Accessed: {}", last));
-                    }
-                    self.wallet_info = Some(info);
                 }
-            }
-            Err(e) => {
-                self.wallet_loaded = false;
-                self.set_error(&format!("Verification failed: {}", e));
-                self.wallet_info = None;
-            }
-        }
+                Err(e) => Err(format!("Verification failed: {}", e)),
+            };
+            let _ = tx.send(result);
+        });
     }
 
     fn show_generate(&mut self, ui: &mut egui::Ui) {
@@ -344,8 +514,8 @@ impl WalletGui {
         ui.label("Encryption Password:");
         ui.label("(min. 8 chars, must include uppercase, lowercase, number, and symbol)");
         ui.add(egui::TextEdit::singleline(&mut self.password).password(!self.show_password).desired_width(300.0));
-        ui.checkbox(&mut self.show_password, "Show password");
-        if self.is_generating {
+        ui.checkbox(&mut self.show_password, "Show");
+        if self.is_processing {
             ui.add_enabled(false, egui::Button::new("Generating Wallet..."));
             ui.label("Please wait, this may take a moment...");
         } else if ui.button("Generate").clicked() {
@@ -354,7 +524,7 @@ impl WalletGui {
     }
 
     fn start_wallet_generation(&mut self) {
-        self.is_generating = true;
+        self.is_processing = true;
         let password = self.password.clone();
         let word_count = self.word_count;
         let threshold = self.seedless_threshold;
@@ -388,29 +558,38 @@ impl WalletGui {
             ui.add(egui::DragValue::new(&mut self.account_index).range(0..=19));
         });
         ui.checkbox(&mut self.show_qr, "Display QR");
-        if ui.button("Load").clicked() {
-            self.load_and_display_addresses();
+        if ui.button("Load").clicked() && !self.is_processing {
+            self.start_load_addresses();
         }
         self.display_loaded_addresses(ui);
     }
 
-    fn load_and_display_addresses(&mut self) {
-        match self.load_addresses_internal() {
-            Ok(addrs) => {
-                if self.show_qr {
-                    self.qr_images.bitcoin = self.generate_qr_from_string(&addrs.bitcoin.p2wpkh);
-                    self.qr_images.ethereum = self.generate_qr_from_string(&addrs.ethereum);
-                    self.qr_images.solana = self.generate_qr_from_string(&addrs.solana);
+    fn start_load_addresses(&mut self) {
+        self.is_processing = true;
+        let password = self.password.clone();
+        let account_index = self.account_index;
+        let show_qr = self.show_qr;
+        let (tx, rx) = mpsc::channel();
+        self.addr_rx = Some(rx);
+        thread::spawn(move || {
+            let result = match load_addresses_internal(&password, account_index) {
+                Ok(addrs) => {
+                    let qr_imgs = if show_qr {
+                        let qr = QrImages {
+                            bitcoin: generate_qr_from_string(&addrs.bitcoin.p2wpkh),
+                            ethereum: generate_qr_from_string(&addrs.ethereum),
+                            solana: generate_qr_from_string(&addrs.solana),
+                        };
+                        Some(qr)
+                    } else {
+                        None
+                    };
+                    Ok((addrs, qr_imgs))
                 }
-                self.addresses = Some(addrs);
-                self.set_status_ok(&format!("Addresses loaded (Account {}).", self.account_index));
-            }
-            Err(e) => {
-                self.set_error(&format!("Failed to load addresses: {}", e));
-                self.addresses = None;
-                self.qr_images = QrImages::default();
-            }
-        }
+                Err(e) => Err(format!("Failed to load addresses: {}", e)),
+            };
+            let _ = tx.send(result);
+        });
     }
 
     fn display_loaded_addresses(&self, ui: &mut egui::Ui) {
@@ -461,25 +640,6 @@ impl WalletGui {
         });
     }
 
-    fn load_addresses_internal(&self) -> Result<Addresses, Box<dyn std::error::Error>> {
-        let metadata = load_metadata()?.ok_or("Metadata not found")?;
-        let secure_seed = match metadata.wallet_type {
-            WalletType::Mnemonic => {
-                let wallet_file = get_wallet_file()?;
-                let contents = std::fs::read_to_string(wallet_file)?;
-                let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
-                let secure_mnemonic = decrypt_mnemonic(&wallet, &self.password)?;
-                secure_mnemonic.to_seed("")
-            }
-            WalletType::Seedless => {
-                let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
-                let secret = recover_secret_from_shares(&self.password, config.threshold)?;
-                SecureSeed::from_entropy(&secret)
-            }
-        };
-        derive_all_addresses(&secure_seed, self.account_index)
-    }
-
     fn display_qr_image(&self, ui: &mut egui::Ui, qr_img: &egui::ColorImage, texture_id: &str) {
         let texture = ui.ctx().load_texture(texture_id, qr_img.clone(), Default::default());
         ui.image(&texture);
@@ -501,13 +661,22 @@ impl WalletGui {
             ui.label("Number of accounts:");
             ui.add(egui::DragValue::new(&mut self.derive_count).range(1..=20));
         });
-        if ui.button("Derive").clicked() {
-            match derive_multiple_accounts(&self.password, self.derive_count) {
-                Ok(_) => self.set_status_ok(&format!("Derived ({}) accounts successfully.", self.derive_count)),
-                Err(e) => self.set_error(&format!("Failed to derive accounts: {}", e)),
-            }
+        if ui.button("Derive").clicked() && !self.is_processing {
+            self.start_derive_accounts();
         }
         ui.label("Note: Derived addresses are displayed in the console/terminal.");
+    }
+
+    fn start_derive_accounts(&mut self) {
+        self.is_processing = true;
+        let password = self.password.clone();
+        let count = self.derive_count;
+        let (tx, rx) = mpsc::channel();
+        self.derive_rx = Some(rx);
+        thread::spawn(move || {
+            let result = derive_multiple_accounts(&password, count).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
     }
 
     fn show_export_view(&mut self, ui: &mut egui::Ui) {
@@ -530,11 +699,8 @@ impl WalletGui {
         if let Some(ref wt) = self.wallet_type {
             if *wt == WalletType::Mnemonic {
                 ui.heading("Export Mnemonic");
-                if ui.button("Export").clicked() {
-                    match export_mnemonic(&self.password, true) {
-                        Ok(_) => self.set_status_ok("Mnemonic displayed in console."),
-                        Err(e) => self.set_error(&format!("Failed: {}", e)),
-                    }
+                if ui.button("Export").clicked() && !self.is_processing {
+                    self.start_export_mnemonic();
                 }
             }
         }
@@ -551,17 +717,38 @@ impl WalletGui {
             ui.label("Account:");
             ui.add(egui::DragValue::new(&mut self.export_account).range(0..=19));
         });
-        if ui.button("Export").clicked() {
-            match export_private_key(&self.password, &self.export_chain, self.export_account, false) {
-                Ok(_) => self.set_status_ok("Private key displayed in console."),
-                Err(e) => self.set_error(&format!("Failed: {}", e)),
-            }
+        if ui.button("Export").clicked() && !self.is_processing {
+            self.start_export_private_key();
         }
         if let Some(ref wt) = self.wallet_type {
             if *wt == WalletType::Seedless {
                 self.show_export_share_section(ui);
             }
         }
+    }
+
+    fn start_export_mnemonic(&mut self) {
+        self.is_processing = true;
+        let password = self.password.clone();
+        let (tx, rx) = mpsc::channel();
+        self.export_rx = Some(rx);
+        thread::spawn(move || {
+            let result = export_mnemonic(&password, true).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+    }
+
+    fn start_export_private_key(&mut self) {
+        self.is_processing = true;
+        let password = self.password.clone();
+        let chain = self.export_chain.clone();
+        let account = self.export_account;
+        let (tx, rx) = mpsc::channel();
+        self.export_rx = Some(rx);
+        thread::spawn(move || {
+            let result = export_private_key(&password, &chain, account, false).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
     }
 
     fn show_export_share_section(&mut self, ui: &mut egui::Ui) {
@@ -573,14 +760,23 @@ impl WalletGui {
                     ui.label("Share Number:");
                     ui.add(egui::DragValue::new(&mut self.export_share_num).range(1..=config.total_shares));
                 });
-                if ui.button("Export").clicked() {
-                    match export_share(&self.password, self.export_share_num, false, None) {
-                        Ok(_) => self.set_status_ok("Share displayed in console."),
-                        Err(e) => self.set_error(&format!("Failed: {}", e)),
-                    }
+                if ui.button("Export").clicked() && !self.is_processing {
+                    self.start_export_share();
                 }
             }
         }
+    }
+
+    fn start_export_share(&mut self) {
+        self.is_processing = true;
+        let password = self.password.clone();
+        let share_num = self.export_share_num;
+        let (tx, rx) = mpsc::channel();
+        self.export_rx = Some(rx);
+        thread::spawn(move || {
+            let result = export_share(&password, share_num, false, None).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
     }
 
     fn show_restore_view(&mut self, ui: &mut egui::Ui) {
@@ -598,16 +794,8 @@ impl WalletGui {
             ui.add(egui::TextEdit::singleline(&mut self.restore_password).password(!self.show_password).desired_width(200.0));
             ui.checkbox(&mut self.show_password, "Show");
         });
-        if ui.button("Restore").clicked() {
-            match restore_wallet(&self.restore_mnemonic, &self.restore_password) {
-                Ok(_) => {
-                    self.set_status_ok("Wallet restored successfully.");
-                    self.refresh_wallet_status();
-                    self.restore_mnemonic.clear();
-                    self.restore_password.clear();
-                }
-                Err(e) => self.set_error(&format!("Restore failed: {}", e)),
-            }
+        if ui.button("Restore").clicked() && !self.is_processing {
+            self.start_restore_mnemonic();
         }
         ui.separator();
         ui.label("Restore Seedless Wallet from Shares:");
@@ -616,26 +804,38 @@ impl WalletGui {
             ui.label("Password:");
             ui.add(egui::TextEdit::singleline(&mut self.restore_password).password(!self.show_password).desired_width(200.0));
         });
-        if ui.button("Restore").clicked() {
-            self.restore_from_shares();
+        if ui.button("Restore").clicked() && !self.is_processing {
+            self.start_restore_shares();
         }
     }
 
-    fn restore_from_shares(&mut self) {
+    fn start_restore_mnemonic(&mut self) {
+        self.is_processing = true;
+        let mnemonic = self.restore_mnemonic.clone();
+        let password = self.restore_password.clone();
+        let (tx, rx) = mpsc::channel();
+        self.restore_rx = Some(rx);
+        thread::spawn(move || {
+            let result = restore_wallet(&mnemonic, &password).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+    }
+
+    fn start_restore_shares(&mut self) {
+        self.is_processing = true;
         let paths: Vec<String> = self.restore_share_paths.lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
         if paths.is_empty() {
+            self.is_processing = false;
             self.set_error("No share paths provided");
             return;
         }
-        match restore_wallet_seedless(&self.restore_password, &paths) {
-            Ok(_) => {
-                self.set_status_ok("Seedless wallet restored successfully.");
-                self.refresh_wallet_status();
-                self.restore_share_paths.clear();
-                self.restore_password.clear();
-            }
-            Err(e) => self.set_error(&format!("Restore failed: {}", e)),
-        }
+        let password = self.restore_password.clone();
+        let (tx, rx) = mpsc::channel();
+        self.restore_rx = Some(rx);
+        thread::spawn(move || {
+            let result = restore_wallet_seedless(&password, &paths).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
     }
 
     fn show_settings_view(&mut self, ui: &mut egui::Ui) {
@@ -655,33 +855,68 @@ impl WalletGui {
             ui.add(egui::TextEdit::singleline(&mut self.new_password).password(!self.show_password).desired_width(200.0));
         });
         ui.checkbox(&mut self.show_password, "Show");
-        if ui.button("Change").clicked() {
-            match change_password(&self.old_password, &self.new_password) {
-                Ok(_) => {
-                    self.set_status_ok("Password changed successfully.");
-                    self.old_password.clear();
-                    self.new_password.clear();
-                }
-                Err(e) => self.set_error(&format!("Failed: {}", e)),
-            }
+        if ui.button("Change").clicked() && !self.is_processing {
+            self.start_change_password();
         }
         ui.separator();
         ui.colored_label(egui::Color32::RED, "Delete Wallet");
         ui.label("This action is PERMANENT and IRREVERSIBLE.");
         ui.label("Make sure you have backed up your mnemonic or shares.");
-        if ui.button("Delete").clicked() {
-            match delete_wallet(true) {
-                Ok(_) => {
-                    self.set_status_ok("Wallet deleted successfully.");
-                    self.refresh_wallet_status();
-                    self.addresses = None;
-                    self.wallet_info = None;
-                    self.wallet_loaded = false;
-                }
-                Err(e) => self.set_error(&format!("Failed: {}", e)),
-            }
+        if ui.button("Delete").clicked() && !self.is_processing {
+            self.start_delete_wallet();
         }
     }
+
+    fn start_change_password(&mut self) {
+        self.is_processing = true;
+        let old_pwd = self.old_password.clone();
+        let new_pwd = self.new_password.clone();
+        let (tx, rx) = mpsc::channel();
+        self.change_pwd_rx = Some(rx);
+        thread::spawn(move || {
+            let result = change_password(&old_pwd, &new_pwd).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+    }
+
+    fn start_delete_wallet(&mut self) {
+        self.is_processing = true;
+        let (tx, rx) = mpsc::channel();
+        self.delete_rx = Some(rx);
+        thread::spawn(move || {
+            let result = delete_wallet(true).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+    }
+}
+
+fn load_addresses_internal(password: &str, account_index: u32) -> Result<Addresses, Box<dyn std::error::Error>> {
+    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let secure_seed = match metadata.wallet_type {
+        WalletType::Mnemonic => {
+            let wallet_file = get_wallet_file()?;
+            let contents = std::fs::read_to_string(wallet_file)?;
+            let wallet: EncryptedWallet = serde_json::from_str(&contents)?;
+            let secure_mnemonic = decrypt_mnemonic(&wallet, password)?;
+            secure_mnemonic.to_seed("")
+        }
+        WalletType::Seedless => {
+            let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
+            let secret = recover_secret_from_shares(password, config.threshold)?;
+            SecureSeed::from_entropy(&secret)
+        }
+    };
+    derive_all_addresses(&secure_seed, account_index)
+}
+
+fn generate_qr_from_string(data: &str) -> Option<egui::ColorImage> {
+    QrCode::new(data).ok().map(|code| {
+        let image = code.render::<Luma<u8>>().build();
+        let width = image.width() as usize;
+        let height = image.height() as usize;
+        let pixels = image.into_raw().into_iter().map(|pixel| egui::Color32::from_gray(if pixel > 128 { 255 } else { 0 })).collect();
+        egui::ColorImage { size: [width, height], pixels }
+    })
 }
 
 pub fn run_gui() -> Result<(), eframe::Error> {

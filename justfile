@@ -1,7 +1,7 @@
 binary := "cws"
 target := "release"
 
-all: clean update check test build docs
+all: clean update check test build
 
 clean:
   @echo "Cleaning..."
@@ -26,7 +26,3 @@ build:
 docs:
   @echo "Generating documentation..."
   cargo doc --no-deps --open
-
-publish:
-  @echo "Publishing..."
-  cargo publish

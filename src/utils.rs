@@ -77,7 +77,7 @@ pub fn update_metadata(address_count: Option<u32>) -> Result<(), Box<dyn std::er
 }
 
 pub fn get_wallet_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    let home = dirs::home_dir().ok_or("Could not find home directory.")?;
     let wallet_dir = home.join(WALLET_DIR);
     if !wallet_dir.exists() {
         fs::create_dir_all(&wallet_dir)?;

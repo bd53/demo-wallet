@@ -79,7 +79,7 @@ pub fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dy
     if !(1..=ACCOUNT_MAX).contains(&count) {
         return Err(format!("You can only derive between 1 and {} accounts.", ACCOUNT_MAX).into());
     }
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     let secure_seed = match metadata.wallet_type {
         WalletType::Mnemonic => {
             let wallet_file = get_wallet_file()?;
@@ -89,7 +89,7 @@ pub fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dy
             secure_mnemonic.to_seed("")
         }
         WalletType::Seedless => {
-            let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
+            let config = metadata.shamir_config.ok_or("Shamir configuration not found.")?;
             let secret = recover_secret_from_shares(password, config.threshold)?;
             SecureSeed::from_entropy(&secret)
         }

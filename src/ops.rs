@@ -97,7 +97,7 @@ pub fn generate_wallet_seedless(password: &str, threshold: u8, total_shares: u8)
 pub fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn std::error::Error>> {
     check_wallet_exists()?;
     validate_account_index(account)?;
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     let secure_seed = match metadata.wallet_type {
         WalletType::Mnemonic => {
             let wallet_file = get_wallet_file()?;
@@ -107,7 +107,7 @@ pub fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn
             secure_mnemonic.to_seed("")
         }
         WalletType::Seedless => {
-            let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
+            let config = metadata.shamir_config.ok_or("Shamir configuration not found.")?;
             let secret = recover_secret_from_shares(password, config.threshold)?;
             SecureSeed::from_entropy(&secret)
         }
@@ -125,7 +125,7 @@ pub fn show_wallet(password: &str, account: u32, qr: bool) -> Result<(), Box<dyn
 
 pub fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::error::Error>> {
     check_wallet_exists()?;
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     if metadata.wallet_type != WalletType::Mnemonic {
         return Err("This is a seedless wallet. Use 'export-share' command instead.".into());
     }
@@ -150,7 +150,7 @@ pub fn export_mnemonic(password: &str, reveal: bool) -> Result<(), Box<dyn std::
 pub fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> Result<(), Box<dyn std::error::Error>> {
     check_wallet_exists()?;
     validate_account_index(index)?;
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     let secure_seed = match metadata.wallet_type {
         WalletType::Mnemonic => {
             let wallet_file = get_wallet_file()?;
@@ -160,7 +160,7 @@ pub fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> 
             secure_mnemonic.to_seed("")
         }
         WalletType::Seedless => {
-            let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
+            let config = metadata.shamir_config.ok_or("Shamir configuration not found.")?;
             let secret = recover_secret_from_shares(password, config.threshold)?;
             SecureSeed::from_entropy(&secret)
         }
@@ -208,11 +208,11 @@ pub fn export_private_key(password: &str, chain: &str, index: u32, qr: bool) -> 
 
 pub fn export_share(password: &str, number: u8, qr: bool, output_path: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     check_wallet_exists()?;
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     if metadata.wallet_type != WalletType::Seedless {
         return Err("This wallet is not seedless. Use 'mnemonic' command instead.".into());
     }
-    let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
+    let config = metadata.shamir_config.ok_or("Shamir configuration not found.")?;
     if number < 1 || number > config.total_shares {
         return Err(format!("Share number must be between 1 and {}", config.total_shares).into());
     }
@@ -303,7 +303,7 @@ pub fn restore_wallet_seedless(password: &str, share_paths: &[String]) -> Result
             break;
         }
     }
-    let threshold = threshold.ok_or("Could not determine threshold")?;
+    let threshold = threshold.ok_or("Could not determine threshold.")?;
     let total_shares = decrypted_shares.len() as u8;
     let metadata = Metadata { version: "2.0".to_string(), created_at: chrono::Utc::now().to_rfc3339(), address_count: 1, last_accessed: None, wallet_type: WalletType::Seedless, shamir_config: Some(ShamirConfig { threshold, total_shares }) };
     save_metadata(&metadata)?;
@@ -360,7 +360,7 @@ pub fn recover_secret_from_shares(password: &str, threshold: u8) -> Result<Zeroi
 
 pub fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
     check_wallet_exists()?;
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     match metadata.wallet_type {
         WalletType::Mnemonic => {
             let wallet_file = get_wallet_file()?;
@@ -370,7 +370,7 @@ pub fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
             println!("\nWallet file is valid and password is correct.");
         }
         WalletType::Seedless => {
-            let config = metadata.shamir_config.as_ref().ok_or("Shamir configuration not found")?;
+            let config = metadata.shamir_config.as_ref().ok_or("Shamir configuration not found.")?;
             let _secret = recover_secret_from_shares(password, config.threshold)?;
             println!("\nSeedless wallet is valid and password is correct.");
             println!("   Recovered secret using {} shares (threshold: {})", config.threshold, config.threshold);
@@ -405,7 +405,7 @@ pub fn change_password(old_password: &str, new_password: &str) -> Result<(), Box
     if !validate_password(new_password) {
         return Err("New password validation failed".into());
     }
-    let metadata = load_metadata()?.ok_or("Metadata not found")?;
+    let metadata = load_metadata()?.ok_or("Metadata not found.")?;
     match metadata.wallet_type {
         WalletType::Mnemonic => {
             let wallet_file = get_wallet_file()?;
@@ -419,7 +419,7 @@ pub fn change_password(old_password: &str, new_password: &str) -> Result<(), Box
             set_secure_file_permissions(&wallet_file)?;
         }
         WalletType::Seedless => {
-            let config = metadata.shamir_config.ok_or("Shamir configuration not found")?;
+            let config = metadata.shamir_config.ok_or("Shamir configuration not found.")?;
             let secret = recover_secret_from_shares(old_password, config.threshold)?;
             let sharks = Sharks(config.threshold);
             let dealer = sharks.dealer(&secret);

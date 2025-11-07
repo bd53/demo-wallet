@@ -376,7 +376,7 @@ pub fn verify_wallet(password: &str) -> Result<(), Box<dyn std::error::Error>> {
             println!("   Recovered secret using {} shares (threshold: {})", config.threshold, config.threshold);
         }
     }
-    println!("\nWallet Info:");
+    println!("\nInformation:");
     println!("   Type: {:?}", metadata.wallet_type);
     println!("   Version: {}", metadata.version);
     println!("   Created: {}", metadata.created_at);

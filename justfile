@@ -17,7 +17,7 @@ check:
 
 test:
   @echo "Testing..."
-  cargo test
+  cargo test --verbose
 
 build:
   @echo "Building ({{target}})..."

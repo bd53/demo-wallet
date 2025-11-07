@@ -1,7 +1,6 @@
 use std::sync::mpsc;
 use std::thread;
 
-use cws::constants::*;
 use cws::derive::*;
 use crate::gui::tabs::show::generate_qr_from_string;
 use crate::gui::tabs::show::load_addresses_internal;
@@ -90,34 +89,7 @@ impl WalletGui {
         let (tx, rx) = mpsc::channel();
         self.derive_rx = Some(rx);
         thread::spawn(move || {
-            let mut accounts = Vec::new();
-            let result = (|| {
-                check_wallet_exists()?;
-                if !(1..=ACCOUNT_MAX).contains(&count) {
-                    return Err(format!("You can only derive between 1 and {} accounts.", ACCOUNT_MAX).into());
-                }
-                let metadata = load_metadata()?.ok_or("Metadata not found.")?;
-                let secure_seed = match metadata.wallet_type {
-                    cws::types::WalletType::Mnemonic => {
-                        let wallet_file = get_wallet_file()?;
-                        let contents = std::fs::read_to_string(wallet_file)?;
-                        let wallet: cws::types::EncryptedWallet = serde_json::from_str(&contents)?;
-                        let secure_mnemonic = cws::crypto::decrypt_mnemonic(&wallet, &password)?;
-                        secure_mnemonic.to_seed("")
-                    }
-                    cws::types::WalletType::Seedless => {
-                        let config = metadata.shamir_config.ok_or("Shamir config not found.")?;
-                        let secret = cws::ops::recover_secret_from_shares(&password, config.threshold)?;
-                        cws::types::SecureSeed::from_entropy(&secret)
-                    }
-                };
-                for i in 0..count {
-                    let addresses = derive_all_addresses(&secure_seed, i)?;
-                    accounts.push((i, addresses));
-                }
-                update_metadata(Some(count))?;
-                Ok(accounts)
-            })().map_err(|e: Box<dyn std::error::Error>| e.to_string());
+            let result = derive_with_details(&password, count).map_err(|e| e.to_string());
             let _ = tx.send(result);
         });
     }

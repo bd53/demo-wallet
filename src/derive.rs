@@ -74,7 +74,7 @@ pub fn derive_all_addresses(secure_seed: &SecureSeed, index: u32) -> Result<Addr
     Ok(Addresses { bitcoin, ethereum, solana })
 }
 
-pub fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dyn std::error::Error>> {
+pub fn derive_with_details(password: &str, count: u32) -> Result<Vec<(u32, Addresses)>, Box<dyn std::error::Error>> {
     check_wallet_exists()?;
     if !(1..=ACCOUNT_MAX).contains(&count) {
         return Err(format!("You can only derive between 1 and {} accounts.", ACCOUNT_MAX).into());
@@ -94,9 +94,19 @@ pub fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dy
             SecureSeed::from_entropy(&secret)
         }
     };
-    println!("\nDeriving {} account(s)...\n", count);
+    let mut accounts = Vec::new();
     for i in 0..count {
         let addresses = derive_all_addresses(&secure_seed, i)?;
+        accounts.push((i, addresses));
+    }
+    update_metadata(Some(count))?;
+    Ok(accounts)
+}
+
+pub fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let accounts = derive_with_details(password, count)?;
+    println!("\nDeriving {} account(s)...\n", count);
+    for (i, addresses) in accounts {
         println!("--------------------------------------------------------------");
         println!("Account {}:", i);
         println!("  Bitcoin (SegWit): {}", addresses.bitcoin.p2wpkh);
@@ -104,6 +114,5 @@ pub fn derive_multiple_accounts(password: &str, count: u32) -> Result<(), Box<dy
         println!("  Solana: {}", addresses.solana);
     }
     println!("--------------------------------------------------------------\n");
-    update_metadata(Some(count))?;
     Ok(())
 }

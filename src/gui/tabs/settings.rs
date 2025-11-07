@@ -8,7 +8,6 @@ pub fn show_settings_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.colored_label(egui::Color32::RED, "No wallet found.");
         return;
     }
-    ui.heading("Change Password");
     ui.horizontal(|ui| {
         ui.label("Old Password:");
         ui.add(egui::TextEdit::singleline(&mut app.old_password).password(!app.show_password).desired_width(200.0));

@@ -103,7 +103,11 @@ fn handle_derive_rx(app: &mut WalletGui) {
             Ok(result) => {
                 app.is_processing = false;
                 match result {
-                    Ok(_) => app.set_status_ok(&format!("Derived ({}) accounts successfully.", app.derive_count)),
+                    Ok(accounts) => {
+                        app.derived_accounts = accounts;
+                        app.set_status_ok(&format!("Derived ({}) accounts successfully.", app.derive_count));
+                        app.password.clear();
+                    }
                     Err(e) => app.set_error(&format!("Failed to derive accounts: {}", e)),
                 }
             }

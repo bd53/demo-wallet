@@ -2,7 +2,7 @@ use eframe::egui;
 use super::super::app::WalletGui;
 use super::super::state::View;
 
-pub fn show_overview(app: &mut WalletGui, ui: &mut egui::Ui) {
+pub fn show_overview_view(app: &mut WalletGui, ui: &mut egui::Ui) {
     ui.heading("Overview");
     ui.separator();
     if !app.wallet_exists {

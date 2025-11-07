@@ -20,5 +20,35 @@ pub fn show_derive_view(app: &mut WalletGui, ui: &mut egui::Ui) {
     if ui.button("Derive").clicked() && !app.is_processing {
         app.start_derive_accounts();
     }
-    ui.label("Note: Derived addresses are displayed in the console/terminal.");
+    ui.separator();
+    if !app.derived_accounts.is_empty() {
+        ui.separator();
+        egui::ScrollArea::vertical().max_height(400.0).auto_shrink([false; 2]).show(ui, |ui| {
+            for (index, addresses) in &app.derived_accounts {
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.heading(format!("Account {}", index));
+                        if ui.small_button("Copy Bitcoin").clicked() {
+                            ui.output_mut(|o| o.copied_text = addresses.bitcoin.p2wpkh.clone());
+                        }
+                        if ui.small_button("Copy Ethereum").clicked() {
+                            ui.output_mut(|o| o.copied_text = addresses.ethereum.clone());
+                        }
+                        if ui.small_button("Copy Solana").clicked() {
+                            ui.output_mut(|o| o.copied_text = addresses.solana.clone());
+                        }
+                    });
+                    ui.label(format!("Bitcoin (SegWit): {}", addresses.bitcoin.p2wpkh));
+                    ui.label(format!("Bitcoin (P2PKH): {}", addresses.bitcoin.p2pkh));
+                    ui.label(format!("Bitcoin (P2SH): {}", addresses.bitcoin.p2sh));
+                    ui.label(format!("Ethereum: {}", addresses.ethereum));
+                    ui.label(format!("Solana: {}", addresses.solana));
+                });
+            }
+        });
+        ui.separator();
+        if ui.button("Clear").clicked() {
+            app.derived_accounts.clear();
+        }
+    }
 }

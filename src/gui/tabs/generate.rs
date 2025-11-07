@@ -1,7 +1,7 @@
 use eframe::egui;
 use super::super::app::WalletGui;
 
-pub fn show_generate(app: &mut WalletGui, ui: &mut egui::Ui) {
+pub fn show_generate_view(app: &mut WalletGui, ui: &mut egui::Ui) {
     ui.heading("Generate");
     ui.separator();
     if app.wallet_exists {

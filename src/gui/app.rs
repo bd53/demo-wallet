@@ -10,6 +10,8 @@ use super::tabs;
 use super::ui;
 
 type AddressResult = Result<(Addresses, Option<QrImages>), String>;
+type DerivedAccounts = Vec<(u32, Addresses)>;
+type DeriveResult = Result<DerivedAccounts, String>;
 
 pub struct WalletGui {
     pub(crate) current_view: View,
@@ -38,10 +40,11 @@ pub struct WalletGui {
     pub(crate) error_message: String,
     pub(crate) is_processing: bool,
     pub(crate) qr_images: QrImages,
+    pub(crate) derived_accounts: Vec<(u32, Addresses)>,
     pub(crate) gen_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) verify_rx: Option<mpsc::Receiver<Result<String, String>>>,
     pub(crate) addr_rx: Option<mpsc::Receiver<AddressResult>>,
-    pub(crate) derive_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    pub(crate) derive_rx: Option<mpsc::Receiver<DeriveResult>>,
     pub(crate) export_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) restore_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) change_pwd_rx: Option<mpsc::Receiver<Result<(), String>>>,
@@ -79,6 +82,7 @@ impl Default for WalletGui {
             error_message: String::new(),
             is_processing: false,
             qr_images: QrImages::default(),
+            derived_accounts: Vec::new(),
             gen_rx: None,
             verify_rx: None,
             addr_rx: None,
@@ -133,8 +137,8 @@ impl eframe::App for WalletGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 match self.current_view {
-                    View::Overview => tabs::overview::show_overview(self, ui),
-                    View::Generate => tabs::generate::show_generate(self, ui),
+                    View::Overview => tabs::overview::show_overview_view(self, ui),
+                    View::Generate => tabs::generate::show_generate_view(self, ui),
                     View::Show => tabs::show::show_addresses_view(self, ui),
                     View::Derive => tabs::derive::show_derive_view(self, ui),
                     View::Export => tabs::export::show_export_view(self, ui),

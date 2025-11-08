@@ -78,17 +78,11 @@ pub fn generate_wallet_seedless(password: &str, threshold: u8, total_shares: u8)
     for i in 1..=total_shares {
         println!("  Share {}: {}", i, get_share_file(i)?.display());
     }
-    println!("\nIMPORTANT:");
+    println!("\nImportant:");
     println!("  1. Use 'share' command to export each share");
     println!("  2. Store shares in DIFFERENT secure locations");
     println!("  3. You need ANY {} shares to recover your wallet", threshold);
     println!("  4. Shares are useless individually - no single point of failure");
-    println!("\nExample distribution strategy:");
-    println!("  - Share 1: USB drive at home");
-    println!("  - Share 2: Encrypted cloud storage");
-    println!("  - Share 3: Paper backup in safe");
-    println!("  - Share 4: Hardware wallet backup");
-    println!("  - Share 5: Trusted family member\n");
     display_addresses(&addresses, 0);
     update_metadata(None)?;
     Ok(())

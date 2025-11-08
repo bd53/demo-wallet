@@ -17,6 +17,29 @@ type DerivedAccounts = Vec<(u32, Addresses)>;
 type DeriveResult = Result<DerivedAccounts, String>;
 type ConvertResult = Result<String, String>;
 
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum Theme {
+    Light,
+    Dark,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UserSettings {
+    pub theme: Theme,
+    pub font_size: f32,
+    pub compact_mode: bool,
+}
+
+impl Default for UserSettings {
+    fn default() -> Self {
+        Self {
+            theme: Theme::Dark,
+            font_size: 14.0,
+            compact_mode: false,
+        }
+    }
+}
+
 pub struct WalletGui {
     pub(crate) current_view: View,
     pub(crate) wallet_loaded: bool,
@@ -58,13 +81,14 @@ pub struct WalletGui {
     pub(crate) change_pwd_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) delete_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) convert_rx: Option<mpsc::Receiver<ConvertResult>>,
+    pub(crate) settings: UserSettings,
 }
 
 impl Default for WalletGui {
     fn default() -> Self {
         let wallet_exists = wallet_exists().unwrap_or(false);
         let wallet_type = wallet_exists.then(|| load_metadata().ok().flatten().map(|m| m.wallet_type)).flatten();
-        Self {
+        let mut app = Self {
             current_view: View::Overview,
             wallet_loaded: false,
             wallet_exists,
@@ -105,7 +129,10 @@ impl Default for WalletGui {
             change_pwd_rx: None,
             delete_rx: None,
             convert_rx: None,
-        }
+            settings: UserSettings::default(),
+        };
+        app.load_settings();
+        app
     }
 }
 
@@ -136,6 +163,43 @@ impl WalletGui {
     pub fn refresh_wallet_status(&mut self) {
         self.wallet_exists = wallet_exists().unwrap_or(false);
         self.wallet_type = self.wallet_exists.then(|| load_metadata().ok().flatten().map(|m| m.wallet_type)).flatten();
+    }
+
+    pub fn save_settings(&mut self) {
+        let config_path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join(".cws").join("settings.json");
+        if let Some(parent) = config_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(json) = serde_json::to_string_pretty(&self.settings) {
+            let _ = std::fs::write(&config_path, json);
+        }
+    }
+
+    pub fn load_settings(&mut self) {
+        let config_path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join(".cws").join("settings.json");
+        if let Ok(json) = std::fs::read_to_string(config_path) {
+            if let Ok(settings) = serde_json::from_str(&json) {
+                self.settings = settings;
+            }
+        }
+    }
+
+    pub fn apply_theme(&self, ctx: &egui::Context) {
+        match self.settings.theme {
+            Theme::Light => ctx.set_visuals(egui::Visuals::light()),
+            Theme::Dark => ctx.set_visuals(egui::Visuals::dark()),
+        }
+        let mut style = (*ctx.style()).clone();
+        style.text_styles.insert(egui::TextStyle::Body, egui::FontId::proportional(self.settings.font_size));
+        style.text_styles.insert(egui::TextStyle::Button, egui::FontId::proportional(self.settings.font_size));
+        style.text_styles.insert(egui::TextStyle::Small, egui::FontId::proportional(self.settings.font_size - 2.0));
+        style.text_styles.insert(egui::TextStyle::Heading, egui::FontId::proportional(self.settings.font_size + 4.0));
+        if self.settings.compact_mode {
+            style.spacing.item_spacing = egui::vec2(4.0, 4.0);
+            style.spacing.button_padding = egui::vec2(4.0, 2.0);
+            style.spacing.window_margin = egui::Margin::same(4.0);
+        }
+        ctx.set_style(style);
     }
 
     pub fn start_verify_wallet(&mut self) {
@@ -325,6 +389,7 @@ impl WalletGui {
 
 impl eframe::App for WalletGui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.apply_theme(ctx);
         handle_pending_results(self);
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             ui::menu::show_menu_bar(self, ui);
@@ -349,6 +414,10 @@ impl eframe::App for WalletGui {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui::status::show_status_bar(self, ui);
         });
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.save_settings();
     }
 }
 

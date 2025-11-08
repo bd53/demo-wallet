@@ -12,6 +12,7 @@ use super::ui;
 type AddressResult = Result<(Addresses, Option<QrImages>), String>;
 type DerivedAccounts = Vec<(u32, Addresses)>;
 type DeriveResult = Result<DerivedAccounts, String>;
+type ConvertResult = Result<String, String>;
 
 pub struct WalletGui {
     pub(crate) current_view: View,
@@ -34,8 +35,12 @@ pub struct WalletGui {
     pub(crate) export_share_num: u8,
     pub(crate) old_password: String,
     pub(crate) new_password: String,
+    pub(crate) convert_key: String,
+    pub(crate) convert_testnet: bool,
+    pub(crate) convert_uncompressed: bool,
     pub(crate) addresses: Option<Addresses>,
     pub(crate) wallet_info: Option<String>,
+    pub(crate) convert_result: Option<String>,
     pub(crate) status_message: String,
     pub(crate) error_message: String,
     pub(crate) is_processing: bool,
@@ -49,6 +54,7 @@ pub struct WalletGui {
     pub(crate) restore_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) change_pwd_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub(crate) delete_rx: Option<mpsc::Receiver<Result<(), String>>>,
+    pub(crate) convert_rx: Option<mpsc::Receiver<ConvertResult>>,
 }
 
 impl Default for WalletGui {
@@ -76,8 +82,12 @@ impl Default for WalletGui {
             export_share_num: 1,
             old_password: String::new(),
             new_password: String::new(),
+            convert_key: String::new(),
+            convert_testnet: false,
+            convert_uncompressed: false,
             addresses: None,
             wallet_info: None,
+            convert_result: None,
             status_message: String::new(),
             error_message: String::new(),
             is_processing: false,
@@ -91,6 +101,7 @@ impl Default for WalletGui {
             restore_rx: None,
             change_pwd_rx: None,
             delete_rx: None,
+            convert_rx: None,
         }
     }
 }
@@ -142,6 +153,7 @@ impl eframe::App for WalletGui {
                     View::Show => tabs::show::show_addresses_view(self, ui),
                     View::Derive => tabs::derive::show_derive_view(self, ui),
                     View::Export => tabs::export::show_export_view(self, ui),
+                    View::Convert => tabs::convert::show_convert_view(self, ui),
                     View::Restore => tabs::restore::show_restore_view(self, ui),
                     View::Settings => tabs::settings::show_settings_view(self, ui),
                 }

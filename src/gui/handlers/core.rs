@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 use std::thread;
 
+use cws::convert::run_convert;
 use cws::derive::*;
 use crate::gui::tabs::show::generate_qr_from_string;
 use crate::gui::tabs::show::load_addresses_internal;
@@ -167,6 +168,19 @@ impl WalletGui {
         self.change_pwd_rx = Some(rx);
         thread::spawn(move || {
             let result = change_password(&old_pwd, &new_pwd).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+    }
+
+    pub fn start_convert(&mut self) {
+        self.is_processing = true;
+        let key = self.convert_key.clone();
+        let testnet = self.convert_testnet;
+        let uncompressed = self.convert_uncompressed;
+        let (tx, rx) = mpsc::channel();
+        self.convert_rx = Some(rx);
+        thread::spawn(move || {
+            let result = run_convert(&key, testnet, uncompressed).map(|_| "".to_string()).map_err(|e| e.to_string());
             let _ = tx.send(result);
         });
     }

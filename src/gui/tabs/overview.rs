@@ -10,7 +10,6 @@ pub fn show_overview_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.label("Create a new wallet using the generate tab.");
         return;
     }
-    ui.label("Information:");
     ui.horizontal(|ui| {
         ui.label("Password:");
         let response = ui.add(egui::TextEdit::singleline(&mut app.password).password(!app.show_password).desired_width(200.0));

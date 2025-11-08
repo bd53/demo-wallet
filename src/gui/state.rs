@@ -7,6 +7,7 @@ pub enum View {
     Show,
     Derive,
     Export,
+    Convert,
     Restore,
     Settings,
 }

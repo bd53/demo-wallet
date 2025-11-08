@@ -22,13 +22,13 @@ pub fn show_export_view(app: &mut WalletGui, ui: &mut egui::Ui) {
     ui.separator();
     if let Some(ref wt) = app.wallet_type {
         if *wt == WalletType::Mnemonic {
-            ui.heading("Export Mnemonic");
+            ui.colored_label(egui::Color32::from_rgb(255, 150, 0), "Export Mnemonic");
             if ui.button("Export").clicked() && !app.is_processing {
                 app.start_export_mnemonic();
             }
         }
     }
-    ui.heading("Export Private Key");
+    ui.colored_label(egui::Color32::from_rgb(255, 150, 0), "Export Private Key");
     ui.horizontal(|ui| {
         ui.label("Chain:");
         egui::ComboBox::from_label("").selected_text(&app.export_chain).show_ui(ui, |ui| {
@@ -52,7 +52,7 @@ pub fn show_export_view(app: &mut WalletGui, ui: &mut egui::Ui) {
 }
 
 fn show_export_share_section(app: &mut WalletGui, ui: &mut egui::Ui) {
-    ui.heading("Export Share");
+    ui.colored_label(egui::Color32::from_rgb(255, 150, 0), "Export Share");
     if let Ok(Some(metadata)) = load_metadata() {
         if let Some(config) = metadata.shamir_config {
             ui.label(format!("Total shares: {}", config.total_shares));

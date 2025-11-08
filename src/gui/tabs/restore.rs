@@ -2,7 +2,7 @@ use eframe::egui;
 use super::super::app::WalletGui;
 
 pub fn show_restore_view(app: &mut WalletGui, ui: &mut egui::Ui) {
-    ui.heading("Restore Wallet");
+    ui.heading("Restore");
     ui.separator();
     if app.wallet_exists {
         ui.colored_label(egui::Color32::RED, "Wallet already exists.");

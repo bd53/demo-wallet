@@ -10,6 +10,7 @@ pub fn handle_pending_results(app: &mut WalletGui) {
     handle_restore_rx(app);
     handle_change_pwd_rx(app);
     handle_delete_rx(app);
+    handle_convert_rx(app);
 }
 
 fn handle_gen_rx(app: &mut WalletGui) {
@@ -217,6 +218,31 @@ fn handle_delete_rx(app: &mut WalletGui) {
             Err(mpsc::TryRecvError::Disconnected) => {
                 app.is_processing = false;
                 app.set_error("Deletion thread disconnected.");
+            }
+        }
+    }
+}
+
+fn handle_convert_rx(app: &mut WalletGui) {
+    if let Some(rx) = app.convert_rx.take() {
+        match rx.try_recv() {
+            Ok(result) => {
+                app.is_processing = false;
+                match result {
+                    Ok(conversion_result) => {
+                        app.convert_result = Some(conversion_result);
+                        app.set_status_ok("Conversion successful.");
+                        app.convert_key.clear();
+                    }
+                    Err(e) => app.set_error(&format!("Conversion failed: {}", e)),
+                }
+            }
+            Err(mpsc::TryRecvError::Empty) => {
+                app.convert_rx = Some(rx);
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                app.is_processing = false;
+                app.set_error("Conversion thread disconnected.");
             }
         }
     }

@@ -1285,7 +1285,7 @@ dependencies = [
 
 [[package]]
 name = "cws"
-version = "0.33.14"
+version = "0.33.15"
 dependencies = [
  "aes-gcm",
  "bip32",

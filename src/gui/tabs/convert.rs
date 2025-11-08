@@ -23,7 +23,7 @@ pub fn show_convert_view(app: &mut WalletGui, ui: &mut egui::Ui) {
     if let Some(result) = &app.convert_result {
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.heading("Conversion Result");
+                ui.heading("Result");
                 if ui.small_button("Copy").clicked() {
                     ui.output_mut(|o| o.copied_text = result.clone());
                 }

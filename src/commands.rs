@@ -110,7 +110,7 @@ pub fn execute_command(command: Commands) -> Result<(), Box<dyn std::error::Erro
         Commands::Mnemonic { password, reveal } => export_mnemonic(&password, reveal),
         Commands::Privatekey { password, chain, account, qr } => export_private_key(&password, &chain, account, qr),
         Commands::Share { password, number, qr, output } => export_share(&password, number, qr, output.as_deref()),
-        Commands::Convert { key, testnet, uncompressed } => convert::run_convert(&key, testnet, uncompressed),
+        Commands::Convert { key, testnet, uncompressed } => { let output = convert::run_convert(&key, testnet, uncompressed)?; println!("{}", output); Ok(()) }
         Commands::Restore { mnemonic, password } => restore_wallet(&mnemonic, &password),
         Commands::RestoreSeedless { password, shares } => { restore_wallet_seedless(&password, &shares) }
         Commands::ChangePassword { old, new } => change_password(&old, &new),

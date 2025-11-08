@@ -180,7 +180,7 @@ impl WalletGui {
         let (tx, rx) = mpsc::channel();
         self.convert_rx = Some(rx);
         thread::spawn(move || {
-            let result = run_convert(&key, testnet, uncompressed).map(|_| "".to_string()).map_err(|e| e.to_string());
+            let result = run_convert(&key, testnet, uncompressed).map_err(|e| e.to_string());
             let _ = tx.send(result);
         });
     }

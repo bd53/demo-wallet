@@ -38,7 +38,7 @@ pub fn show_export_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         });
     });
     ui.horizontal(|ui| {
-        ui.label("Account:");
+        ui.label("Account Index:");
         ui.add(egui::DragValue::new(&mut app.export_account).range(0..=19));
     });
     if ui.button("Export").clicked() && !app.is_processing {

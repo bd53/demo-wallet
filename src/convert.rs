@@ -1,6 +1,6 @@
 use bitcoin::{Address, Network, NetworkKind, PrivateKey, PublicKey};
 
-pub fn run_convert(hex_key: &str, testnet: bool, uncompressed: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_convert(hex_key: &str, testnet: bool, uncompressed: bool) -> Result<String, Box<dyn std::error::Error>> {
     let key_bytes = hex::decode(hex_key.trim_start_matches("0x")).map_err(|_| "Invalid hex key format")?;
     if key_bytes.len() != 32 {
         return Err("Private key must be 32 bytes".into());
@@ -13,12 +13,18 @@ pub fn run_convert(hex_key: &str, testnet: bool, uncompressed: bool) -> Result<(
     let pk = PublicKey::from_private_key(&secp, &private_key);
     let address = Address::p2pkh(pk, network);
     let wif = private_key.to_wif();
-    println!("\nBitcoin Private Key Conversion");
-    println!("--------------------------------");
-    println!("Network: {}", if testnet { "Testnet" } else { "Mainnet" });
-    println!("Format: {}", if uncompressed { "Uncompressed" } else { "Compressed" });
-    println!("WIF: {}", wif);
-    println!("Address: {}", address);
-    println!("--------------------------------\n");
-    Ok(())
+    let output = format!(
+        "Bitcoin Private Key Conversion\n\
+         --------------------------------\n\
+         Network: {}\n\
+         Format: {}\n\
+         WIF: {}\n\
+         Address: {}\n\
+         --------------------------------",
+        if testnet { "Testnet" } else { "Mainnet" },
+        if uncompressed { "Uncompressed" } else { "Compressed" },
+        wif,
+        address
+    );
+    Ok(output)
 }

@@ -14,7 +14,7 @@ pub fn show_derive_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.checkbox(&mut app.show_password, "Show");
     });
     ui.horizontal(|ui| {
-        ui.label("Number of accounts:");
+        ui.label("Number:");
         ui.add(egui::DragValue::new(&mut app.derive_count).range(1..=20));
     });
     if ui.button("Derive").clicked() && !app.is_processing {

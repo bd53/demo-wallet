@@ -202,7 +202,7 @@ impl WalletGui {
         ctx.set_style(style);
     }
 
-    pub fn start_verify_wallet(&mut self) {
+    pub fn start_verify_wallet(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let (tx, rx) = mpsc::channel();
@@ -225,10 +225,11 @@ impl WalletGui {
                 Err(e) => Err(format!("Verification failed: {}", e)),
             };
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_wallet_generation(&mut self) {
+    pub fn start_wallet_generation(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let word_count = self.word_count;
@@ -243,10 +244,11 @@ impl WalletGui {
                 generate_wallet(&password, word_count).map_err(|e| e.to_string())
             };
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_load_addresses(&mut self) {
+    pub fn start_load_addresses(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let account_index = self.account_index;
@@ -271,10 +273,11 @@ impl WalletGui {
                 Err(e) => Err(format!("Failed to load addresses: {}", e)),
             };
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_derive_accounts(&mut self) {
+    pub fn start_derive_accounts(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let count = self.derive_count;
@@ -283,10 +286,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = derive_with_details(&password, count).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_export_mnemonic(&mut self) {
+    pub fn start_export_mnemonic(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let (tx, rx) = mpsc::channel();
@@ -294,10 +298,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = export_mnemonic(&password, true).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_export_private_key(&mut self) {
+    pub fn start_export_private_key(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let chain = self.export_chain.clone();
@@ -307,10 +312,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = export_private_key(&password, &chain, account, false).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_export_share(&mut self) {
+    pub fn start_export_share(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let password = self.password.clone();
         let share_num = self.export_share_num;
@@ -319,10 +325,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = export_share(&password, share_num, false, None).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_restore_mnemonic(&mut self) {
+    pub fn start_restore_mnemonic(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let mnemonic = self.restore_mnemonic.clone();
         let password = self.restore_password.clone();
@@ -331,10 +338,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = restore_wallet(&mnemonic, &password).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_restore_shares(&mut self) {
+    pub fn start_restore_shares(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let paths: Vec<String> = self.restore_share_paths.lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
         if paths.is_empty() {
@@ -348,10 +356,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = restore_wallet_seedless(&password, &paths).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_change_password(&mut self) {
+    pub fn start_change_password(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let old_pwd = self.old_password.clone();
         let new_pwd = self.new_password.clone();
@@ -360,10 +369,11 @@ impl WalletGui {
         thread::spawn(move || {
             let result = change_password(&old_pwd, &new_pwd).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_convert(&mut self) {
+    pub fn start_convert(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let key = self.convert_key.clone();
         let testnet = self.convert_testnet;
@@ -373,16 +383,18 @@ impl WalletGui {
         thread::spawn(move || {
             let result = run_convert(&key, testnet, uncompressed).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 
-    pub fn start_delete_wallet(&mut self) {
+    pub fn start_delete_wallet(&mut self, ctx: egui::Context) {
         self.is_processing = true;
         let (tx, rx) = mpsc::channel();
         self.delete_rx = Some(rx);
         thread::spawn(move || {
             let result = delete_wallet(true).map_err(|e| e.to_string());
             let _ = tx.send(result);
+            ctx.request_repaint();
         });
     }
 }
@@ -422,201 +434,147 @@ impl eframe::App for WalletGui {
 }
 
 pub fn handle_pending_results(app: &mut WalletGui) {
-    if let Some(rx) = app.gen_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(_) => {
-                        app.set_status_ok("Wallet generated successfully.");
-                        app.refresh_wallet_status();
-                        app.password.clear();
-                    }
-                    Err(e) => app.set_error(&format!("Generation failed: {}", e)),
+    if let Some(rx) = app.gen_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.gen_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(_) => {
+                    app.set_status_ok("Wallet generated successfully.");
+                    app.refresh_wallet_status();
+                    app.password.clear();
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.gen_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Generation thread disconnected.");
+                Err(e) => app.set_error(&format!("Generation failed: {}", e)),
             }
         }
     }
 
-    if let Some(rx) = app.verify_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(info) => {
-                        app.wallet_loaded = true;
-                        app.set_status_ok("Wallet verified successfully.");
-                        app.wallet_info = Some(info);
-                    }
-                    Err(e) => {
-                        app.wallet_loaded = false;
-                        app.set_error(&format!("Verification failed: {}", e));
-                        app.wallet_info = None;
-                    }
+    if let Some(rx) = app.verify_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.verify_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(info) => {
+                    app.wallet_loaded = true;
+                    app.set_status_ok("Wallet verified successfully.");
+                    app.wallet_info = Some(info);
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.verify_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Verification thread disconnected.");
+                Err(e) => {
+                    app.wallet_loaded = false;
+                    app.set_error(&format!("Verification failed: {}", e));
+                    app.wallet_info = None;
+                }
             }
         }
     }
 
-    if let Some(rx) = app.addr_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok((addrs, qr_imgs)) => {
-                        app.addresses = Some(addrs);
-                        if let Some(qr) = qr_imgs {
-                            app.qr_images = qr;
-                        }
-                        app.set_status_ok(&format!("Addresses loaded (Account {}).", app.account_index));
+    if let Some(rx) = app.addr_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.addr_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok((addrs, qr_imgs)) => {
+                    app.addresses = Some(addrs);
+                    if let Some(qr) = qr_imgs {
+                        app.qr_images = qr;
                     }
-                    Err(e) => {
-                        app.set_error(&format!("Failed to load addresses: {}", e));
-                        app.addresses = None;
-                        app.qr_images = QrImages::default();
-                    }
+                    app.set_status_ok(&format!("Addresses loaded (Account {}).", app.account_index));
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.addr_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Address loading thread disconnected.");
+                Err(e) => {
+                    app.set_error(&format!("Failed to load addresses: {}", e));
+                    app.addresses = None;
+                    app.qr_images = QrImages::default();
+                }
             }
         }
     }
 
-    if let Some(rx) = app.derive_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(accounts) => {
-                        app.derived_accounts = accounts;
-                        app.set_status_ok(&format!("Derived ({}) accounts successfully.", app.derive_count));
-                        app.password.clear();
-                    }
-                    Err(e) => app.set_error(&format!("Failed to derive accounts: {}", e)),
+    if let Some(rx) = app.derive_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.derive_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(accounts) => {
+                    app.derived_accounts = accounts;
+                    app.set_status_ok(&format!("Derived ({}) accounts successfully.", app.derive_count));
+                    app.password.clear();
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.derive_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Derivation thread disconnected.");
+                Err(e) => app.set_error(&format!("Failed to derive accounts: {}", e)),
             }
         }
     }
 
-    if let Some(rx) = app.export_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(_) => app.set_status_ok("Data exported successfully."),
-                    Err(e) => app.set_error(&format!("Export failed: {}", e)),
-                }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.export_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Export thread disconnected.");
+    if let Some(rx) = app.export_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.export_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(_) => app.set_status_ok("Data exported successfully."),
+                Err(e) => app.set_error(&format!("Export failed: {}", e)),
             }
         }
     }
 
-    if let Some(rx) = app.restore_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(_) => {
-                        app.set_status_ok("Wallet restored successfully.");
-                        app.refresh_wallet_status();
-                        app.restore_mnemonic.clear();
-                        app.restore_password.clear();
-                        app.restore_share_paths.clear();
-                    }
-                    Err(e) => app.set_error(&format!("Restore failed: {}", e)),
+    if let Some(rx) = app.restore_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.restore_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(_) => {
+                    app.set_status_ok("Wallet restored successfully.");
+                    app.refresh_wallet_status();
+                    app.restore_mnemonic.clear();
+                    app.restore_password.clear();
+                    app.restore_share_paths.clear();
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.restore_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Restore thread disconnected.");
+                Err(e) => app.set_error(&format!("Restore failed: {}", e)),
             }
         }
     }
 
-    if let Some(rx) = app.change_pwd_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(_) => {
-                        app.set_status_ok("Password changed successfully.");
-                        app.old_password.clear();
-                        app.new_password.clear();
-                    }
-                    Err(e) => app.set_error(&format!("Password change failed: {}", e)),
+    if let Some(rx) = app.change_pwd_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.change_pwd_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(_) => {
+                    app.set_status_ok("Password changed successfully.");
+                    app.old_password.clear();
+                    app.new_password.clear();
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.change_pwd_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Password change thread disconnected.");
+                Err(e) => app.set_error(&format!("Password change failed: {}", e)),
             }
         }
     }
 
-    if let Some(rx) = app.delete_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(_) => {
-                        app.set_status_ok("Wallet deleted successfully.");
-                        app.refresh_wallet_status();
-                        app.addresses = None;
-                        app.wallet_info = None;
-                        app.wallet_loaded = false;
-                    }
-                    Err(e) => app.set_error(&format!("Deletion failed: {}", e)),
+    if let Some(rx) = app.delete_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.delete_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(_) => {
+                    app.set_status_ok("Wallet deleted successfully.");
+                    app.refresh_wallet_status();
+                    app.addresses = None;
+                    app.wallet_info = None;
+                    app.wallet_loaded = false;
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.delete_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Deletion thread disconnected.");
+                Err(e) => app.set_error(&format!("Deletion failed: {}", e)),
             }
         }
     }
 
-    if let Some(rx) = app.convert_rx.take() {
-        match rx.try_recv() {
-            Ok(result) => {
-                app.is_processing = false;
-                match result {
-                    Ok(conversion_result) => {
-                        app.convert_result = Some(conversion_result);
-                        app.set_status_ok("Conversion successful.");
-                        app.convert_key.clear();
-                    }
-                    Err(e) => app.set_error(&format!("Conversion failed: {}", e)),
+    if let Some(rx) = app.convert_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            app.convert_rx = None;
+            app.is_processing = false;
+            match result {
+                Ok(conversion_result) => {
+                    app.convert_result = Some(conversion_result);
+                    app.set_status_ok("Conversion successful.");
+                    app.convert_key.clear();
                 }
-            }
-            Err(mpsc::TryRecvError::Empty) => app.convert_rx = Some(rx),
-            Err(mpsc::TryRecvError::Disconnected) => {
-                app.is_processing = false;
-                app.set_error("Conversion thread disconnected.");
+                Err(e) => app.set_error(&format!("Conversion failed: {}", e)),
             }
         }
     }

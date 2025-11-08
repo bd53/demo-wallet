@@ -37,6 +37,6 @@ pub fn show_generate_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.add_enabled(false, egui::Button::new("Generating..."));
         ui.label("Please wait, this may take a moment...");
     } else if ui.button("Generate").clicked() {
-        app.start_wallet_generation();
+        app.start_wallet_generation(ui.ctx().clone());
     }
 }

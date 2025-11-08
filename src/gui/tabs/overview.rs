@@ -17,7 +17,7 @@ pub fn show_overview_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         let should_verify =
             ui.button("Verify").clicked() || (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
         if should_verify && !app.is_processing {
-            app.start_verify_wallet();
+            app.start_verify_wallet(ui.ctx().clone());
         }
     });
     if let Some(ref info) = app.wallet_info {

@@ -23,12 +23,12 @@ pub fn show_addresses_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.checkbox(&mut app.show_password, "Show");
     });
     ui.horizontal(|ui| {
-        ui.label("Account Index:");
+        ui.label("Account:");
         ui.add(egui::DragValue::new(&mut app.account_index).range(0..=19));
     });
     ui.checkbox(&mut app.show_qr, "Display QR");
     if ui.button("Load").clicked() && !app.is_processing {
-        app.start_load_addresses();
+        app.start_load_addresses(ui.ctx().clone());
     }
     display_loaded_addresses(app, ui);
 }

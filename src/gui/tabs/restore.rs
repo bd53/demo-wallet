@@ -17,7 +17,7 @@ pub fn show_restore_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.checkbox(&mut app.show_password, "Show");
     });
     if ui.button("Restore").clicked() && !app.is_processing {
-        app.start_restore_mnemonic();
+        app.start_restore_mnemonic(ui.ctx().clone());
     }
     ui.separator();
     ui.label("Restore Seedless Wallet from Shares:");
@@ -27,6 +27,6 @@ pub fn show_restore_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.add(egui::TextEdit::singleline(&mut app.restore_password).password(!app.show_password).desired_width(200.0));
     });
     if ui.button("Restore").clicked() && !app.is_processing {
-        app.start_restore_shares();
+        app.start_restore_shares(ui.ctx().clone());
     }
 }

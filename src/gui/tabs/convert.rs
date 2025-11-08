@@ -16,7 +16,7 @@ pub fn show_convert_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         if app.convert_key.is_empty() {
             app.set_error("Please enter a private key.");
         } else {
-            app.start_convert();
+            app.start_convert(ui.ctx().clone());
         }
     }
     if let Some(result) = &app.convert_result.clone() {

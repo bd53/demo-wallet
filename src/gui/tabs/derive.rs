@@ -18,7 +18,7 @@ pub fn show_derive_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         ui.add(egui::DragValue::new(&mut app.derive_count).range(1..=20));
     });
     if ui.button("Derive").clicked() && !app.is_processing {
-        app.start_derive_accounts();
+        app.start_derive_accounts(ui.ctx().clone());
     }
     ui.separator();
     if !app.derived_accounts.is_empty() {

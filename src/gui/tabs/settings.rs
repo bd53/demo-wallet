@@ -47,8 +47,8 @@ pub fn show_settings_view(app: &mut WalletGui, ui: &mut egui::Ui) {
             });
             ui.checkbox(&mut app.show_password, "Show");
             ui.horizontal(|ui| {
-                if ui.button("Change Password").clicked() && !app.is_processing {
-                    app.start_change_password();
+                if ui.button("Change").clicked() && !app.is_processing {
+                    app.start_change_password(ui.ctx().clone());
                 }
                 if (!app.old_password.is_empty() || !app.new_password.is_empty()) && ui.button("Clear").clicked() {
                     app.old_password.clear();
@@ -62,7 +62,7 @@ pub fn show_settings_view(app: &mut WalletGui, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 let delete_button = egui::Button::new("Delete").fill(egui::Color32::RED);
                 if ui.add(delete_button).clicked() && !app.is_processing {
-                    app.start_delete_wallet();
+                    app.start_delete_wallet(ui.ctx().clone());
                 }
             });
         });

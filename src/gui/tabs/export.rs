@@ -24,7 +24,7 @@ pub fn show_export_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         if *wt == WalletType::Mnemonic {
             ui.colored_label(egui::Color32::from_rgb(255, 150, 0), "Export Mnemonic");
             if ui.button("Export").clicked() && !app.is_processing {
-                app.start_export_mnemonic();
+                app.start_export_mnemonic(ui.ctx().clone());
             }
         }
     }
@@ -38,11 +38,11 @@ pub fn show_export_view(app: &mut WalletGui, ui: &mut egui::Ui) {
         });
     });
     ui.horizontal(|ui| {
-        ui.label("Account Index:");
+        ui.label("Account:");
         ui.add(egui::DragValue::new(&mut app.export_account).range(0..=19));
     });
     if ui.button("Export").clicked() && !app.is_processing {
-        app.start_export_private_key();
+        app.start_export_private_key(ui.ctx().clone());
     }
     if let Some(ref wt) = app.wallet_type {
         if *wt == WalletType::Seedless {
@@ -61,7 +61,7 @@ fn show_export_share_section(app: &mut WalletGui, ui: &mut egui::Ui) {
                 ui.add(egui::DragValue::new(&mut app.export_share_num).range(1..=config.total_shares));
             });
             if ui.button("Export").clicked() && !app.is_processing {
-                app.start_export_share();
+                app.start_export_share(ui.ctx().clone());
             }
         }
     }

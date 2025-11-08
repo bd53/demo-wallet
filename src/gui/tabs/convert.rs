@@ -19,25 +19,20 @@ pub fn show_convert_view(app: &mut WalletGui, ui: &mut egui::Ui) {
             app.start_convert();
         }
     }
-    ui.separator();
-    if let Some(result) = &app.convert_result {
+    if let Some(result) = &app.convert_result.clone() {
         ui.group(|ui| {
-            ui.horizontal(|ui| {
-                ui.heading("Result");
-                if ui.small_button("Copy").clicked() {
-                    ui.output_mut(|o| o.copied_text = result.clone());
-                }
-            });
-            egui::ScrollArea::vertical().max_height(300.0).auto_shrink([false; 2]).show(ui, |ui| {
-                for line in result.lines() {
-                    ui.monospace(line);
-                }
-            });
+            for line in result.lines() {
+                ui.label(line);
+            }
         });
-        ui.separator();
-        if ui.button("Clear").clicked() {
-            app.convert_result = None;
-            app.convert_key.clear();
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Copy").clicked() {
+                ui.output_mut(|o| o.copied_text = result.clone());
+            }
+            if ui.button("Clear").clicked() {
+                app.convert_result = None;
+                app.convert_key.clear();
+            }
+        });
     }
 }

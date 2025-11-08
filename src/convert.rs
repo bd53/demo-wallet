@@ -14,13 +14,10 @@ pub fn run_convert(hex_key: &str, testnet: bool, uncompressed: bool) -> Result<S
     let address = Address::p2pkh(pk, network);
     let wif = private_key.to_wif();
     let output = format!(
-        "Bitcoin Private Key Conversion\n\
-         --------------------------------\n\
-         Network: {}\n\
+        "Network: {}\n\
          Format: {}\n\
          WIF: {}\n\
-         Address: {}\n\
-         --------------------------------",
+         Address: {}",
         if testnet { "Testnet" } else { "Mainnet" },
         if uncompressed { "Uncompressed" } else { "Compressed" },
         wif,

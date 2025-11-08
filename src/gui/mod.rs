@@ -1,6 +1,5 @@
-mod state;
 mod app;
-mod handlers;
+mod state;
 mod tabs;
 mod ui;
 

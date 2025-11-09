@@ -9,7 +9,6 @@ use cws::ops::*;
 use cws::types::*;
 use cws::utils::*;
 
-use super::state::{View, QrImages};
 use super::{tabs, ui};
 
 type AddressResult = Result<(Addresses, Option<QrImages>), String>;

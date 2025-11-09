@@ -1,6 +1,6 @@
 use eframe::egui;
 use super::super::app::WalletGui;
-use super::super::state::View;
+use cws::types::View;
 
 pub fn show_sidebar(app: &mut WalletGui, ui: &mut egui::Ui) {
     sidebar_view_button(app, ui, View::Overview, "Overview");

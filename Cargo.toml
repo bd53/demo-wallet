@@ -2,13 +2,12 @@
 name = "cws"
 description = "Example crypto wallet for offline key management and cold storage."
 authors = ["bd53"]
-version = "0.33.19"
+version = "0.33.20"
 license = "MIT"
 repository = "https://github.com/bd53/cws"
 edition = "2021"
 categories = ["command-line-utilities", "cryptography"]
 keywords = ["blockchain", "cli", "crypto", "storage", "utility"]
-default-run = "cws"
 
 [lib]
 name = "cws"

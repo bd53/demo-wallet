@@ -1,4 +1,5 @@
 use bip39::{Language, Mnemonic};
+use eframe::egui;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -145,4 +146,23 @@ impl Zeroize for SecureSeed {
     fn zeroize(&mut self) {
         self.seed.zeroize();
     }
+}
+
+#[derive(PartialEq)]
+pub enum View {
+    Overview,
+    Generate,
+    Show,
+    Derive,
+    Export,
+    Convert,
+    Restore,
+    Settings,
+}
+
+#[derive(Default)]
+pub struct QrImages {
+    pub bitcoin: Option<egui::ColorImage>,
+    pub ethereum: Option<egui::ColorImage>,
+    pub solana: Option<egui::ColorImage>,
 }
